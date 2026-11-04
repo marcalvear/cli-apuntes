@@ -303,6 +303,14 @@ def _documento(ruta: Path, ctx: ContextoPlan) -> Documento | None:
         return None
 
 
+#: Ficheros que genera apuntes: la IA nunca los resume ni los clasifica.
+SUFIJOS_GENERADOS = (".resumen.md", ".preguntas.md")
+
+
+def _es_generado(ruta: Path) -> bool:
+    return ruta.name.lower().endswith(SUFIJOS_GENERADOS)
+
+
 class ClasificarConIA(MoverFicheros, tipo="ia-clasificar"):
     """Como `mover` a {asignatura}, pero la asignatura la decide la IA leyendo el contenido.
 
@@ -311,6 +319,9 @@ class ClasificarConIA(MoverFicheros, tipo="ia-clasificar"):
     """
 
     config: cfg.AccionIAClasificar  # type: ignore[assignment]
+
+    def planificar(self, ficheros: list[Path], ctx: ContextoPlan) -> None:
+        super().planificar([f for f in ficheros if not _es_generado(f)], ctx)
 
     def _asignatura_de(self, origen: Path, ctx: ContextoPlan) -> str | None:
         documento = _documento(origen, ctx)
@@ -342,6 +353,8 @@ class _GenerarDocumento(Accion):
 
     def planificar(self, ficheros: list[Path], ctx: ContextoPlan) -> None:
         for origen in ficheros:
+            if _es_generado(origen):
+                continue  # no se resume un resumen
             destino = self.config.destino
             carpeta = _resolver(destino, ctx.carpeta) if destino else origen.parent
             salida = carpeta / f"{origen.stem}{self.sufijo}"
