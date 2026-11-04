@@ -25,7 +25,7 @@ from typing import Literal
 
 from apuntes.disco import escribir_atomico
 from apuntes.errores import ApuntesError
-from apuntes.operaciones import EnviarAPapelera, Escribir, Mover, Operacion
+from apuntes.operaciones import EnviarAPapelera, Escribir, Mover, Operacion, QuitarCarpetaVacia
 
 MAX_EJECUCIONES = 50
 Estado = Literal["completa", "interrumpida", "deshecha"]
@@ -122,8 +122,16 @@ class Historial:
         """Las operaciones inversas, en orden contrario, comprobando el disco actual."""
         plan = Deshacer(ejecucion)
         ocupadas: set[Path] = set()  # destinos que el propio plan ya va a ocupar
+        carpetas: set[Path] = set()
         for registro in reversed(ejecucion.operaciones):
             _inversa(registro, plan, ocupadas)
+            creadas = registro.get("carpetas_creadas")
+            if isinstance(creadas, list):
+                carpetas.update(Path(str(c)) for c in creadas)
+        # Al final, y de la más profunda a la más externa: así primero se vacían.
+        for carpeta in sorted(carpetas, key=lambda c: len(c.parts), reverse=True):
+            if carpeta.is_dir():
+                plan.operaciones.append(QuitarCarpetaVacia(carpeta))
         return plan
 
 

@@ -63,7 +63,7 @@ class PapeleraFalsa:
 def papelera(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
     """Ningún test envía nada a la papelera real del ordenador."""
     falsa = PapeleraFalsa(tmp_path_factory.mktemp("papelera"))
-    monkeypatch.setattr("apuntes.motor._papelera_del_sistema", falsa)
+    monkeypatch.setattr("apuntes.motor.papelera_del_sistema", falsa)
     return falsa
 
 

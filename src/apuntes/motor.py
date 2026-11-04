@@ -254,7 +254,7 @@ class Motor:
         historial: Historial | None = None,
     ) -> None:
         self._configuracion = configuracion
-        self._papelera = papelera or _papelera_del_sistema
+        self._papelera = papelera or papelera_del_sistema
         self._ahora = ahora
         self._fabrica_ia = ia or _proveedor_por_defecto
         self._historial = historial or Historial()
@@ -375,5 +375,5 @@ def _proveedor_por_defecto() -> ProveedorIA:
     return crear_proveedor()
 
 
-def _papelera_del_sistema(ruta: Path) -> None:
+def papelera_del_sistema(ruta: Path) -> None:
     send2trash(ruta)
