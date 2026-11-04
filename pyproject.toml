@@ -1,6 +1,6 @@
 [project]
 name = "apuntes"
-version = "0.1.0"
+version = "1.0.0"
 description = "CLI que organiza apuntes y material de clase con acciones configurables en JSON y ayuda de IA"
 readme = "README.md"
 license = "MIT"
