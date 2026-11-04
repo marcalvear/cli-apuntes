@@ -19,3 +19,23 @@ class ApuntesError(Exception):
 
 class CarpetaNoValida(ApuntesError):
     """La carpeta indicada no existe, no es una carpeta o no se puede leer."""
+
+
+class ConfigError(ApuntesError):
+    """acciones.json no existe, no es JSON válido o no cumple el esquema.
+
+    `problemas` lista cada fallo con la ruta del campo, p. ej.
+    "acciones[2] (limpiar).filtro.extensiones: debe ser una lista".
+    """
+
+    codigo_salida = 3
+
+    def __init__(
+        self, mensaje: str, *, problemas: list[str] | None = None, pista: str | None = None
+    ) -> None:
+        super().__init__(mensaje, pista=pista)
+        self.problemas = problemas or []
+
+
+class AccionNoValida(ApuntesError):
+    """Se pidió ejecutar una acción que no existe en la configuración."""
