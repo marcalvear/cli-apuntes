@@ -8,7 +8,7 @@ deduplicar, resumir con IA…) no están escritas en el código: se describen en
 fichero `acciones.json` que el motor interpreta.
 
 > **Estado:** en desarrollo (v0.1.0). Funcionan todas las órdenes y los 10 tipos de acción,
-> 3 de ellos con IA (Claude).
+> 3 de ellos con IA (Gemini, gratis, o Claude).
 
 ## Instalación
 
@@ -214,7 +214,14 @@ Pista: Comprueba el esquema en el README o ejecuta: apuntes validar
 
 ## IA (opcional)
 
-Tres tipos de acción usan la API de Claude:
+Tres tipos de acción usan IA. Hay dos proveedores intercambiables:
+
+| Proveedor | Coste | Clave | Modelos |
+|---|---|---|---|
+| **Gemini** (por defecto) | Gratis, con límites por minuto y por día | `GEMINI_API_KEY` de [aistudio.google.com](https://aistudio.google.com) | `gemini-3.8-flash`; si está saturado, pasa a `gemini-3.6-flash` y `gemini-3.5-flash-lite` |
+| **Claude** | De pago por uso | `ANTHROPIC_API_KEY` de [console.anthropic.com](https://console.anthropic.com) | `claude-opus-5-5` |
+
+Las acciones son las mismas con cualquiera de los dos:
 
 | Tipo | Qué hace | ¿Cuándo llama a la IA? |
 |---|---|---|
@@ -225,17 +232,17 @@ Tres tipos de acción usan la API de Claude:
 Lee PDF (incluidas las tablas y los diagramas de las diapositivas), `.txt` y `.md`.
 El resto de ficheros se saltan con un aviso.
 
-### Configurar la clave
+### Configurar la clave (gratis, con Gemini)
 
-1. Crea una clave en [console.anthropic.com](https://console.anthropic.com) → *API keys*.
-2. Copia la plantilla y pon la clave:
+1. En [aistudio.google.com](https://aistudio.google.com), pulsa *Get API key* y luego *Crear clave*. No pide tarjeta.
+2. Copia la plantilla en tu configuración personal y pon la clave:
 
    ```bash
-   cp .env.example .env          # o en ~/.config/apuntes/.env para todas las carpetas
+   mkdir -p ~/.config/apuntes && cp .env.example ~/.config/apuntes/.env
    ```
 
    ```bash
-   ANTHROPIC_API_KEY=tu-clave
+   open -e ~/.config/apuntes/.env      # GEMINI_API_KEY=tu-clave
    ```
 
 3. Comprueba que todo está bien:
@@ -244,9 +251,15 @@ El resto de ficheros se saltan con un aviso.
    apuntes estado
    ```
 
-`.env` está en `.gitignore` desde el primer commit: **la clave nunca se sube al repositorio**.
-También se puede exportar `ANTHROPIC_API_KEY` en la terminal. El modelo por defecto es
-`claude-opus-5-5`; se cambia con `APUNTES_MODELO`.
+`~/.config/apuntes/.env` vale para cualquier carpeta y está fuera de todo repositorio. Un
+`.env` en la carpeta actual también funciona, y está en `.gitignore` desde el primer commit:
+**la clave nunca se sube al repositorio**.
+
+| Variable | Para qué |
+|---|---|
+| `APUNTES_PROVEEDOR` | `gemini` o `claude`. Si no se indica, se usa el que tenga clave |
+| `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` | La clave del proveedor |
+| `APUNTES_MODELO` | Modelo preferido (opcional) |
 
 ### Sin clave o sin internet
 
@@ -258,8 +271,21 @@ La IA es opcional. Sin ella:
 
 ```text
 Paso 4/5: clasificar-con-ia (ia-clasificar) en /Users/marc/pruebas-tareas
-  Paso omitido: No hay conexión con la API de Claude (¿sin internet?).
+  Paso omitido: No hay conexión con la API de Gemini (¿sin internet?).
 Sin IA: se omiten 1 paso(s); el resto se hace igual.
+```
+
+### Ejemplo real
+
+En la carpeta de pruebas, con Gemini gratis, `ordenar-todo` deja a la IA los ficheros que las
+palabras clave no resuelven:
+
+```text
+Paso 4/5: clasificar-con-ia (ia-clasificar) en /Users/marc/pruebas-tareas
+#  Operación  Fichero           Destino / detalle
+1  mover      documento(3).pdf  Apuntes/Sistemas Informaticos/documento(3).pdf
+2  mover      java y sql.pdf    Apuntes/Bases de Datos/java y sql.pdf
+  · apuntes-antiguos-1ESO.pdf: según la IA no es de ninguna asignatura (matemáticas de 1.º de ESO)
 ```
 
 ### Caché
