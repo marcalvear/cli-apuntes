@@ -7,8 +7,8 @@ ejercicios que se acumulan en Descargas. Las acciones (mover, renombrar,
 deduplicar, resumir con IA…) no están escritas en el código: se describen en un
 fichero `acciones.json` que el motor interpreta.
 
-> **Estado:** en desarrollo (v0.1.0). Ya funcionan `version`, `listar`, `init`, `acciones` y
-> `validar`. `ejecutar` llega en la siguiente versión.
+> **Estado:** en desarrollo (v0.1.0). Funcionan todas las órdenes y los 7 tipos de acción sin
+> IA. Las acciones con IA llegan en la siguiente versión.
 
 ## Instalación
 
@@ -40,6 +40,47 @@ apuntes init                # crea un acciones.json de ejemplo en la carpeta act
 apuntes acciones            # lista las acciones definidas
 apuntes validar             # comprueba acciones.json (código 3 si es inválido)
 apuntes -c ~/otro.json acciones   # usa otro fichero de acciones
+
+apuntes ejecutar ordenar-todo ~/Descargas --simular   # enseña el plan sin tocar nada
+apuntes ejecutar ordenar-todo ~/Descargas             # lo aplica (pide confirmación si borra)
+apuntes ejecutar limpiar-temporales ~/Descargas --si  # sin preguntar, para scripts
+```
+
+### Cómo trabaja `ejecutar`
+
+1. **Planifica** todo lo que va a hacer sin tocar el disco. En un `pipeline`, cada paso
+   ve los ficheros donde los dejará el anterior.
+2. **Enseña el plan:** cada operación (mover, renombrar, a la papelera…) y los ficheros
+   que deja sin tocar, con el motivo. Por ejemplo: «dudoso entre Bases de Datos y Programacion».
+3. Con `--simular` (`-n`) **se para aquí**.
+4. Si el plan es destructivo (envía algo a la papelera o reemplaza un fichero), **pregunta**.
+   La respuesta por defecto es «no». `--si` (`-y`) no pregunta.
+5. **Aplica** las operaciones en orden. Si una falla, por ejemplo porque alguien ha creado
+   un fichero en el destino mientras tanto, se detiene e indica cuántas se hicieron. Ningún
+   fichero queda a medias: se escribe en temporales y se colocan con un renombrado atómico.
+
+Lo que se «borra» va siempre a la **Papelera** del sistema y se puede recuperar.
+
+Ejemplo de `--simular`:
+
+```text
+Paso 3/4: ordenar-por-asignatura (mover) en /Users/marc/pruebas-tareas
+#  Operación  Fichero                        Destino / detalle
+1  mover      BBDD - Normalizacion 3FN.pdf   Apuntes/Bases de Datos/BBDD - Normalizacion 3FN.pdf
+2  mover      Tema3_POO.pdf                  Apuntes/Programacion/Tema3_POO.pdf
+  · java y sql.pdf: sin asignatura (dudoso entre Bases de Datos y Programacion); no se toca
+
+Simulación: 11 operaciones; no se ha cambiado nada.
+```
+
+### Probar sin miedo
+
+Para probar con material falso, sin tocar tus ficheros, crea una carpeta de pruebas:
+
+```bash
+uv run scripts/crear_carpeta_pruebas.py      # crea ~/pruebas-tareas
+apuntes ejecutar ordenar-todo ~/pruebas-tareas --simular
+uv run scripts/crear_carpeta_pruebas.py --rehacer   # vuelve a empezar
 ```
 
 ### Qué fichero de acciones se usa
@@ -56,7 +97,7 @@ Se usa el primero que exista de esta lista:
 | Código | Significado |
 |---|---|
 | 0 | Todo bien |
-| 1 | Fallo al ejecutar (por ejemplo, la carpeta no existe) |
+| 1 | Fallo al ejecutar: la carpeta no existe, la acción no existe, una operación falló o cancelaste la confirmación |
 | 2 | Error de uso: opción o argumento incorrecto |
 | 3 | `acciones.json` inválido |
 
@@ -109,7 +150,7 @@ y es el mismo que crea `apuntes init`.
 | `nombre` | sí | Identificador para `apuntes ejecutar NOMBRE`. Minúsculas, números y guiones, sin repetir. |
 | `descripcion` | sí | Frase que se ve en `apuntes acciones`. |
 | `tipo` | sí | Uno de los tipos de la tabla siguiente. |
-| `origen` | no | Carpeta de trabajo. Si falta, se usa la CARPETA de la orden. Admite `~`. |
+| `origen` | no | Carpeta de trabajo por defecto. Admite `~`. Si en la orden se indica una CARPETA, tiene prioridad; si no hay ni una ni otra, se usa la carpeta actual. |
 | `filtro` | no | Qué ficheros afectan a la acción (ver más abajo). Sin filtro, todos. |
 | `confirmar` | no | `true` o `false`. Preguntar antes de actuar. Por defecto es `true` en las acciones destructivas. |
 
