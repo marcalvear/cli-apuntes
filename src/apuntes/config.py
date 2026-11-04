@@ -231,6 +231,13 @@ class AccionIAClasificar(_AccionConDestino):
     destino: str = Field(default="{asignatura}", min_length=1)
     USA_IA: ClassVar[bool] = True
 
+    @field_validator("destino")
+    @classmethod
+    def _destino_con_asignatura(cls, valor: str) -> str:
+        if "asignatura" not in marcadores_de(valor):
+            raise ValueError("debe contener {asignatura}: es la carpeta que elige la IA")
+        return valor
+
 
 class AccionIAResumir(_AccionBase):
     tipo: Literal["ia-resumir"]

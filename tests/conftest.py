@@ -65,3 +65,21 @@ def papelera(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.Monke
     falsa = PapeleraFalsa(tmp_path_factory.mktemp("papelera"))
     monkeypatch.setattr("apuntes.motor._papelera_del_sistema", falsa)
     return falsa
+
+
+@pytest.fixture(autouse=True)
+def ia(monkeypatch: pytest.MonkeyPatch):
+    """Ningún test llama a la API real: el motor usa siempre una IA falsa."""
+    from tests.ia_falsa import IAFalsa
+
+    falsa = IAFalsa()
+    monkeypatch.setattr("apuntes.motor._proveedor_por_defecto", lambda: falsa)
+    return falsa
+
+
+@pytest.fixture(autouse=True)
+def _sin_credenciales_reales(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Los tests no ven la clave real ni leen el .env del ordenador."""
+    for variable in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "APUNTES_CONFIG"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setattr("apuntes.cli.cargar_env", lambda: None)

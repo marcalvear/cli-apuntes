@@ -21,17 +21,22 @@ from pathlib import Path
 
 from send2trash import send2trash
 
-from apuntes.config import AccionConfig, Configuracion, Filtro
-from apuntes.errores import CarpetaNoValida, EjecucionInterrumpida, FicheroError
+from apuntes.config import AccionConfig, AccionPipeline, Configuracion, Filtro
+from apuntes.errores import ApuntesError, CarpetaNoValida, EjecucionInterrumpida, IANoDisponible
+from apuntes.ia.proveedor import ProveedorIA
 from apuntes.operaciones import (
     Copiar,
     CrearZip,
     EnviarAPapelera,
     Escribir,
+    GenerarConIA,
     Mover,
     Operacion,
     Papelera,
 )
+
+#: Construye el proveedor de IA solo si alguna acción lo necesita.
+FabricaIA = Callable[[], ProveedorIA]
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +137,9 @@ class Vista:
             case Escribir(ruta=ruta, contenido=contenido):
                 self._ficheros[ruta] = InfoVirtual(len(contenido.encode()), ahora, None)
                 self._eliminados.discard(ruta)
+            case GenerarConIA(ruta=ruta):
+                self._ficheros[ruta] = InfoVirtual(0, ahora, None)
+                self._eliminados.discard(ruta)
             case CrearZip(ruta=ruta):
                 self._ficheros[ruta] = InfoVirtual(0, ahora, None)
                 self._eliminados.discard(ruta)
@@ -172,6 +180,8 @@ class Paso:
     operaciones: list[Operacion] = field(default_factory=list)
     #: Ficheros que se dejan sin tocar y por qué.
     avisos: list[str] = field(default_factory=list)
+    #: Si el paso entero se salta (p. ej. IA no disponible en un pipeline), el motivo.
+    omitido: str | None = None
 
     @property
     def debe_confirmar(self) -> bool:
@@ -208,6 +218,11 @@ class ContextoPlan:
     ahora: datetime
     configuracion: Configuracion
     paso: Paso
+    _ia: Callable[[], ProveedorIA]
+
+    def ia(self) -> ProveedorIA:
+        """El proveedor de IA, ya comprobado (lanza IANoDisponible si no se puede usar)."""
+        return self._ia()
 
     def anadir(self, operacion: Operacion) -> None:
         """Añade la operación al paso y actualiza la vista (para los siguientes ficheros)."""
@@ -234,10 +249,28 @@ class Motor:
         *,
         papelera: Papelera | None = None,
         ahora: datetime | None = None,
+        ia: FabricaIA | None = None,
     ) -> None:
         self._configuracion = configuracion
         self._papelera = papelera or _papelera_del_sistema
         self._ahora = ahora
+        self._fabrica_ia = ia or _proveedor_por_defecto
+        self._proveedor: ProveedorIA | None = None
+        self._ia_no_disponible: IANoDisponible | None = None
+
+    def _ia(self) -> ProveedorIA:
+        """Crea y comprueba el proveedor una sola vez por ejecución."""
+        if self._ia_no_disponible is not None:
+            raise self._ia_no_disponible
+        if self._proveedor is None:
+            proveedor = self._fabrica_ia()
+            try:
+                proveedor.comprobar()
+            except IANoDisponible as error:
+                self._ia_no_disponible = error
+                raise
+            self._proveedor = proveedor
+        return self._proveedor
 
     def carpeta_de(self, accion: AccionConfig, carpeta: Path | None) -> Path:
         """CARPETA de la orden > `origen` de la acción > carpeta actual."""
@@ -262,14 +295,24 @@ class Motor:
         ahora = self._ahora or datetime.now()
         vista = Vista()
         pasos: list[Paso] = []
+        es_pipeline = isinstance(principal, AccionPipeline)
         for accion_cfg in self._configuracion.pasos_de(principal):
             ejecutor = Accion.desde_config(accion_cfg)  # falla pronto si no se puede ejecutar
             carpeta_paso = self.carpeta_de(accion_cfg, carpeta)
             paso = Paso(accion=accion_cfg, carpeta=carpeta_paso)
-            contexto = ContextoPlan(carpeta_paso, vista, ahora, self._configuracion, paso)
+            pasos.append(paso)
+            if accion_cfg.USA_IA:
+                try:
+                    self._ia()
+                except IANoDisponible as error:
+                    if not es_pipeline:
+                        raise
+                    # Sin IA, el pipeline sigue con los pasos que no la necesitan.
+                    paso.omitido = error.mensaje
+                    continue
+            contexto = ContextoPlan(carpeta_paso, vista, ahora, self._configuracion, paso, self._ia)
             ficheros = seleccionar(vista, carpeta_paso, accion_cfg.filtro, ahora=ahora)
             ejecutor.planificar(ficheros, contexto)
-            pasos.append(paso)
         return Plan(accion=principal, carpeta=self.carpeta_de(principal, carpeta), pasos=pasos)
 
     def aplicar(self, plan: Plan, *, al_aplicar: Callable[[Operacion], None] | None = None) -> int:
@@ -282,7 +325,7 @@ class Motor:
         for operacion in plan.operaciones:
             try:
                 operacion.aplicar(self._papelera)
-            except FicheroError as error:
+            except ApuntesError as error:  # fallo de disco o de la IA a mitad
                 total = len(plan.operaciones)
                 raise EjecucionInterrumpida(
                     f"{error.mensaje} Se detiene la ejecución: {aplicadas} de {total} "
@@ -294,6 +337,12 @@ class Motor:
             if al_aplicar is not None:
                 al_aplicar(operacion)
         return aplicadas
+
+
+def _proveedor_por_defecto() -> ProveedorIA:
+    from apuntes.ia.entorno import crear_proveedor  # el SDK solo se importa si hace falta
+
+    return crear_proveedor()
 
 
 def _papelera_del_sistema(ruta: Path) -> None:

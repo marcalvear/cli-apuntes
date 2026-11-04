@@ -21,7 +21,7 @@ import tempfile
 import zipfile
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from apuntes.disco import escribir_atomico
@@ -204,6 +204,29 @@ class Escribir(Operacion):
 
     def _ejecutar(self, papelera: Papelera) -> None:
         escribir_atomico(self.ruta, self.contenido)
+
+
+@dataclass(frozen=True)
+class GenerarConIA(Operacion):
+    """Escribe un fichero cuyo contenido genera la IA *al aplicar*, no al planificar.
+
+    Así `--simular` no gasta nada: solo dice qué se generaría.
+    """
+
+    ruta: Path
+    tarea: str  # «resumen», «10 preguntas»...
+    generar: Callable[[], str] = field(compare=False, repr=False)
+
+    def describir(self, base: Path) -> tuple[str, str, str]:
+        return ("generar con IA", _relativa(self.ruta, base), self.tarea)
+
+    def _comprobar(self) -> None:
+        if self.ruta.exists():
+            raise FicheroError(f"«{self.ruta}» ya existe: ha aparecido desde que se planificó.")
+
+    def _ejecutar(self, papelera: Papelera) -> None:
+        contenido = self.generar()  # puede lanzar ErrorIA: el motor lo informa
+        escribir_atomico(self.ruta, contenido if contenido.endswith("\n") else contenido + "\n")
 
 
 @dataclass(frozen=True)
