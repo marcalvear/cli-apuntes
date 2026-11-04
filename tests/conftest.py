@@ -5,6 +5,7 @@ nunca tocan ficheros reales del usuario.
 """
 
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -43,3 +44,24 @@ def carpeta_apuntes(tmp_path: Path) -> Path:
     crear_fichero(tmp_path / ".DS_Store", b"basura")
     (tmp_path / "Programacion").mkdir()
     return tmp_path
+
+
+class PapeleraFalsa:
+    """Sustituye a la papelera del sistema: guarda lo recibido en una carpeta del test."""
+
+    def __init__(self, carpeta: Path) -> None:
+        self.carpeta = carpeta
+        self.recibidos: list[str] = []
+
+    def __call__(self, ruta: Path) -> None:
+        self.carpeta.mkdir(parents=True, exist_ok=True)
+        self.recibidos.append(ruta.name)
+        shutil.move(ruta, self.carpeta / f"{len(self.recibidos)}-{ruta.name}")
+
+
+@pytest.fixture(autouse=True)
+def papelera(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
+    """Ningún test envía nada a la papelera real del ordenador."""
+    falsa = PapeleraFalsa(tmp_path_factory.mktemp("papelera"))
+    monkeypatch.setattr("apuntes.motor._papelera_del_sistema", falsa)
+    return falsa

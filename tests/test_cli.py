@@ -2,10 +2,12 @@
 
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from apuntes import __version__
 from apuntes.cli import app
+from tests.conftest import PapeleraFalsa
 
 
 def test_sin_argumentos_muestra_la_ayuda(runner: CliRunner) -> None:
@@ -118,3 +120,111 @@ def test_init_con_forzar_guarda_copia(runner: CliRunner, tmp_path: Path) -> None
     assert resultado.exit_code == 0
     assert (tmp_path / "acciones.json.bak").read_text() == "mío"
     assert ruta.read_text() != "mío"
+
+
+# --- ejecutar ---------------------------------------------------------------
+
+CONFIG_EJECUTAR = (
+    '{"version": 1, "acciones": ['
+    '{"nombre": "limpiar", "descripcion": "d", "tipo": "borrar",'
+    ' "filtro": {"extensiones": [".tmp"]}},'
+    '{"nombre": "a-pdf", "descripcion": "d", "tipo": "mover", "destino": "PDF",'
+    ' "filtro": {"extensiones": [".pdf"]}}]}'
+)
+
+
+@pytest.fixture
+def entorno(tmp_path: Path) -> tuple[Path, Path]:
+    """(acciones.json, carpeta de trabajo con un .tmp y un .pdf)."""
+    config = tmp_path / "acciones.json"
+    config.write_text(CONFIG_EJECUTAR)
+    trabajo = tmp_path / "trabajo"
+    trabajo.mkdir()
+    (trabajo / "basura.tmp").write_text("x")
+    (trabajo / "tema.pdf").write_text("pdf")
+    return config, trabajo
+
+
+def _ejecutar(runner: CliRunner, config: Path, *args: str, entrada: str | None = None):
+    return runner.invoke(app, ["-c", str(config), "ejecutar", *args], input=entrada)
+
+
+def test_simular_muestra_el_plan_y_no_toca_nada(
+    runner: CliRunner, entorno: tuple[Path, Path]
+) -> None:
+    config, trabajo = entorno
+    resultado = _ejecutar(runner, config, "limpiar", str(trabajo), "--simular")
+
+    assert resultado.exit_code == 0
+    assert "a la papelera" in resultado.output
+    assert "basura.tmp" in resultado.output
+    assert "no se ha cambiado nada" in resultado.output
+    assert (trabajo / "basura.tmp").exists()
+
+
+def test_destructiva_pide_confirmacion_y_por_defecto_no_hace_nada(
+    runner: CliRunner, entorno: tuple[Path, Path], papelera: PapeleraFalsa
+) -> None:
+    config, trabajo = entorno
+    resultado = _ejecutar(runner, config, "limpiar", str(trabajo), entrada="\n")  # Intro = No
+
+    assert resultado.exit_code == 1
+    assert "¿Aplicar estas 1 operaciones?" in resultado.output
+    assert "Cancelado" in resultado.output
+    assert (trabajo / "basura.tmp").exists()
+    assert papelera.recibidos == []
+
+
+def test_destructiva_confirmada_se_aplica(
+    runner: CliRunner, entorno: tuple[Path, Path], papelera: PapeleraFalsa
+) -> None:
+    config, trabajo = entorno
+    resultado = _ejecutar(runner, config, "limpiar", str(trabajo), entrada="y\n")
+
+    assert resultado.exit_code == 0
+    assert "1 operaciones aplicadas" in resultado.output
+    assert papelera.recibidos == ["basura.tmp"]
+
+
+def test_si_aplica_sin_preguntar(
+    runner: CliRunner, entorno: tuple[Path, Path], papelera: PapeleraFalsa
+) -> None:
+    config, trabajo = entorno
+    resultado = _ejecutar(runner, config, "limpiar", str(trabajo), "--si")
+
+    assert resultado.exit_code == 0
+    assert "¿Aplicar" not in resultado.output
+    assert papelera.recibidos == ["basura.tmp"]
+
+
+def test_no_destructiva_se_aplica_sin_preguntar(
+    runner: CliRunner, entorno: tuple[Path, Path]
+) -> None:
+    config, trabajo = entorno
+    resultado = _ejecutar(runner, config, "a-pdf", str(trabajo))
+
+    assert resultado.exit_code == 0
+    assert (trabajo / "PDF" / "tema.pdf").exists()
+
+
+def test_nada_que_hacer(runner: CliRunner, entorno: tuple[Path, Path]) -> None:
+    config, trabajo = entorno
+    (trabajo / "basura.tmp").unlink()
+    resultado = _ejecutar(runner, config, "limpiar", str(trabajo))
+    assert resultado.exit_code == 0
+    assert "Nada que hacer" in resultado.output
+
+
+def test_accion_inexistente_sale_con_1_y_sugiere(
+    runner: CliRunner, entorno: tuple[Path, Path]
+) -> None:
+    config, trabajo = entorno
+    resultado = _ejecutar(runner, config, "volar", str(trabajo))
+    assert resultado.exit_code == 1
+    assert "limpiar, a-pdf" in resultado.output
+
+
+def test_simular_y_si_juntas_es_error_de_uso(runner: CliRunner, entorno: tuple[Path, Path]) -> None:
+    config, trabajo = entorno
+    resultado = _ejecutar(runner, config, "limpiar", str(trabajo), "--simular", "--si")
+    assert resultado.exit_code == 2
