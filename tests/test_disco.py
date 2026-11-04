@@ -14,7 +14,7 @@ def test_escribe_y_crea_carpetas(tmp_path: Path) -> None:
 
 def test_sobrescribe_el_contenido_anterior(tmp_path: Path) -> None:
     ruta = tmp_path / "nota.md"
-    ruta.write_text("viejo")
+    ruta.write_text("viejo", encoding="utf-8")
     escribir_atomico(ruta, b"nuevo")
     assert ruta.read_bytes() == b"nuevo"
 
@@ -24,7 +24,7 @@ def test_si_falla_a_medias_el_original_queda_intacto(
 ) -> None:
     """Simulamos un fallo justo antes de reemplazar: no debe perderse nada."""
     ruta = tmp_path / "importante.md"
-    ruta.write_text("contenido original")
+    ruta.write_text("contenido original", encoding="utf-8")
 
     def replace_roto(*_: object) -> None:
         raise OSError("disco lleno")
@@ -33,5 +33,5 @@ def test_si_falla_a_medias_el_original_queda_intacto(
     with pytest.raises(OSError, match="disco lleno"):
         escribir_atomico(ruta, "contenido nuevo")
 
-    assert ruta.read_text() == "contenido original"
+    assert ruta.read_text(encoding="utf-8") == "contenido original"
     assert list(tmp_path.iterdir()) == [ruta]  # el temporal se ha limpiado
