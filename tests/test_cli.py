@@ -300,4 +300,4 @@ def test_estado_sin_clave(runner: CliRunner, entorno_ia: tuple[Path, Path]) -> N
     resultado = runner.invoke(app, ["-c", str(config), "estado"])
     assert resultado.exit_code == 0
     assert "3 acciones" in resultado.output
-    assert "falta la clave ANTHROPIC_API_KEY" in resultado.output
+    assert "falta la clave GEMINI_API_KEY" in resultado.output

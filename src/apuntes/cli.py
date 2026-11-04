@@ -23,7 +23,7 @@ from apuntes.config import Configuracion
 from apuntes.disco import escribir_atomico
 from apuntes.errores import ApuntesError, ConfigError
 from apuntes.ficheros import TipoFichero, listar_carpeta, tamano_legible
-from apuntes.ia.entorno import cargar_env, hay_clave
+from apuntes.ia.entorno import cargar_env, hay_clave, variable_clave
 from apuntes.motor import Motor, Plan
 from apuntes.operaciones import GenerarConIA
 
@@ -161,7 +161,7 @@ def acciones(ctx: typer.Context) -> None:
     con_ia = [a for a in configuracion.acciones if a.USA_IA]
     if con_ia and not hay_clave():
         consola.print(
-            f"[yellow]IA sin configurar[/] (falta ANTHROPIC_API_KEY): las {len(con_ia)} acciones "
+            f"[yellow]IA sin configurar[/] (falta {variable_clave()}): las {len(con_ia)} acciones "
             f"con IA no se podrán ejecutar; las otras {len(configuracion.acciones) - len(con_ia)} "
             "funcionan con normalidad. Ver README → IA."
         )
@@ -320,7 +320,7 @@ def ejecutar(
 def estado(ctx: typer.Context) -> None:
     """Comprueba la configuración: fichero de acciones, clave de IA y conexión."""
     from apuntes.ia.cache import ruta_cache_por_defecto
-    from apuntes.ia.entorno import crear_proveedor, ficheros_env
+    from apuntes.ia.entorno import crear_proveedor, ficheros_env, proveedor_elegido
 
     ruta = _ruta_config(ctx)
     try:
@@ -337,11 +337,12 @@ def estado(ctx: typer.Context) -> None:
         if env
         else "[dim]·[/] .env: no hay (se usan las variables de entorno)"
     )
-    proveedor = crear_proveedor()
     try:
+        proveedor = crear_proveedor()
         proveedor.comprobar()
         consola.print(
-            f"[green]✓[/] IA: clave encontrada y API accesible (modelo {proveedor.modelo})"
+            f"[green]✓[/] IA ({proveedor_elegido()}): clave encontrada y API accesible "
+            f"(modelo {proveedor.modelo})"
         )
     except ApuntesError as error:
         consola.print(f"[yellow]![/] IA: {escape(error.mensaje)}")

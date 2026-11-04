@@ -80,6 +80,14 @@ def ia(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture(autouse=True)
 def _sin_credenciales_reales(monkeypatch: pytest.MonkeyPatch) -> None:
     """Los tests no ven la clave real ni leen el .env del ordenador."""
-    for variable in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "APUNTES_CONFIG"):
+    for variable in (
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_AUTH_TOKEN",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "APUNTES_PROVEEDOR",
+        "APUNTES_MODELO",
+        "APUNTES_CONFIG",
+    ):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setattr("apuntes.cli.cargar_env", lambda: None)

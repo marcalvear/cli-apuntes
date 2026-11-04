@@ -18,9 +18,12 @@ generar preguntas de repaso. Requisitos:
 
 1. **Interfaz `ProveedorIA`** (`ia/proveedor.py`) con cuatro métodos:
    `comprobar`, `clasificar`, `resumir` y `preguntas`. Las acciones solo
-   conocen esta interfaz. La implementación real es `ProveedorClaude`
-   (API de Claude, modelo `claude-opus-5-5`, configurable con
-   `APUNTES_MODELO`), y en los tests se usa `IAFalsa`.
+   conocen esta interfaz. Hay dos implementaciones reales:
+   - `ProveedorGemini`, la de por defecto, usable gratis con una clave de AI Studio;
+   - `ProveedorClaude`, de pago.
+
+   `APUNTES_PROVEEDOR` elige entre las dos y, en los tests, se usa `IAFalsa`.
+   Los prompts están en `ia/prompts.py` y son los mismos para los dos proveedores.
 2. **Los PDF se envían tal cual**, sin extraer el texto en local, porque
    Claude también lee tablas, diagramas y código de las diapositivas.
 3. **Clasificación con salida estructurada:** un JSON Schema cuyo campo
@@ -59,3 +62,16 @@ generar preguntas de repaso. Requisitos:
 - La comprobación de red es aproximada: con un proxy no se comprueba. Si la
   conexión cae a mitad, el error se traduce igualmente a un mensaje humano y
   el motor se detiene sin dejar ficheros a medias.
+
+## Actualización (2026-11-04): Gemini como proveedor por defecto
+
+La API de Claude es de pago, y para un proyecto de clase hace falta una opción
+gratuita. Se añadió `ProveedorGemini`, que **no exigió tocar ni las acciones, ni el
+motor, ni la caché**: es la prueba práctica de que la interfaz común era la
+decisión correcta.
+
+La capa gratuita de Gemini satura a veces un modelo (503) o agota su cuota (429).
+Por eso el proveedor prueba una lista de modelos gratuitos en orden y, si uno
+falla, no lo vuelve a intentar durante esa ejecución. En la prueba real, con
+`gemini-3.8-flash` saturado, la clasificación pasó sola a `gemini-3.6-flash` y
+acertó los tres casos difíciles.
