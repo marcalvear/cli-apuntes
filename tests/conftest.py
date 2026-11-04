@@ -12,6 +12,13 @@ import pytest
 from typer.testing import CliRunner
 
 
+@pytest.fixture(autouse=True)
+def _consola_ancha(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rich corta las líneas a 80 columnas; con rutas temporales largas (Windows)
+    un mensaje podría partirse justo donde lo buscamos. Ensanchamos la consola."""
+    monkeypatch.setenv("COLUMNS", "300")
+
+
 @pytest.fixture
 def runner() -> CliRunner:
     return CliRunner()
