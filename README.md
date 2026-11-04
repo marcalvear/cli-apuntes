@@ -9,6 +9,9 @@ fichero `acciones.json` que el motor interpreta.
 
 > **Versión 1.0.0.** Todas las órdenes y los 10 tipos de acción, 3 de ellos con IA
 > (Gemini, gratis, o Claude). Cambios en el [CHANGELOG](CHANGELOG.md).
+>
+> 📋 **¿Evaluando el proyecto?** La sección [Evaluación según la rúbrica](#evaluación-según-la-rúbrica)
+> enlaza cada criterio con su evidencia.
 
 ## Instalación
 
@@ -326,6 +329,108 @@ y no a su nombre. Simular y luego aplicar no paga dos veces, y si una ejecución
 al repetirla lo ya hecho sale gratis. Los `.resumen.md` y `.preguntas.md` que ya existen
 no se regeneran: si quieres uno nuevo, borra el anterior. El diseño está explicado en el
 [ADR 0003](docs/adr/0003-proveedor-ia.md).
+
+## Evaluación según la rúbrica
+
+Esta sección enlaza cada criterio de la rúbrica con **dónde se puede comprobar** en el
+repositorio. Los tests citados se ejecutan con `uv run pytest -k NOMBRE`.
+
+### Mínimos obligatorios
+
+| Mínimo | Evidencia |
+|---|---|
+| Se instala siguiendo el README y `--help` funciona | [Instalación](#instalación): una orden, `uv tool install git+https://github.com/marcalvear/cli-apuntes`. Probado desde cero con la [release v1.0.0](https://github.com/marcalvear/cli-apuntes/releases/tag/v1.0.0) |
+| Al menos 3 acciones propias en `acciones.json` | [`acciones.json`](acciones.json) tiene 10 acciones: 6 sin IA, 3 con IA y 1 pipeline que combina varias |
+| Ninguna clave en el repo ni en su historial | El [primer commit](https://github.com/marcalvear/cli-apuntes/commit/4431e49) ya ignora `.env`. Las claves solo se leen del entorno ([`ia/entorno.py`](src/apuntes/ia/entorno.py)), y la plantilla es [`.env.example`](.env.example) |
+| Al menos 10 commits que cuentan el proceso | Más de 60 commits en 7 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr), todos con un mensaje que explica el porqué |
+
+### Acciones predefinidas funcionando (20 %)
+
+| La rúbrica pide (Excelente) | Evidencia |
+|---|---|
+| 5 o más acciones propias útiles | 10 acciones en [`acciones.json`](acciones.json). Hay 11 tipos disponibles (10 ejecutables más `pipeline`), cada uno una clase en [`acciones.py`](src/apuntes/acciones.py) |
+| Combinables | Tipo `pipeline` (por ejemplo, `ordenar-todo`, con 5 pasos). Test `test_pipeline_cada_paso_ve_el_resultado_del_anterior` |
+| Salida clara: qué se ha hecho y sobre qué ficheros | Cada operación sale en una tabla con el fichero y su destino, y cada fichero que no se toca, con el motivo. Ver [Cómo trabaja `ejecutar`](#cómo-trabaja-ejecutar) |
+| Sin efectos sorpresa: simulación previa | `--simular` muestra el mismo plan que luego se aplica ([ADR 0002](docs/adr/0002-planificar-y-aplicar.md)). Tests `test_planificar_no_modifica_el_disco` y `test_simular_muestra_el_plan_y_no_toca_nada` |
+| Sin efectos sorpresa: confirmación antes de borrar o sobrescribir | Las acciones destructivas preguntan, y por defecto la respuesta es «no»; borrar va siempre a la Papelera. Test `test_destructiva_pide_confirmacion_y_por_defecto_no_hace_nada` |
+| *(Extra)* | `apuntes deshacer` devuelve cada fichero a su sitio ([ADR 0004](docs/adr/0004-historial-y-deshacer.md)) |
+
+### Configuración externa en `acciones.json` (15 %)
+
+| La rúbrica pide (Excelente) | Evidencia |
+|---|---|
+| Esquema propio documentado en el README | [El fichero `acciones.json`](#el-fichero-accionesjson): raíz, campos comunes, filtro, los 10 tipos y las plantillas |
+| El JSON se valida antes de ejecutar | Modelos Pydantic en [`config.py`](src/apuntes/config.py) y la orden `apuntes validar` |
+| Los errores dicen qué campo falla | `acciones[0] (mover-pdf).destnio: campo desconocido (¿una errata?)`, con código de salida 3. Tests `test_errata_en_un_campo_se_detecta`, `test_json_mal_escrito_indica_linea_y_columna` y `test_validar_fichero_invalido_sale_con_3_y_nombra_el_campo` |
+| Añadir una acción no exige tocar el código | Basta con escribirla en el JSON. Test `test_la_plantilla_de_ejemplo_es_valida` |
+| ADR que justifica configuración externa y no código | [ADR 0001](docs/adr/0001-configuracion-externa.md) |
+
+### Capa IA, secretos y modo sin red (15 %)
+
+| La rúbrica pide (Excelente) | Evidencia |
+|---|---|
+| Al menos 2 acciones con IA útiles | `ia-clasificar`, `ia-resumir` e `ia-preguntas`, con dos proveedores: Gemini ([`ia/gemini.py`](src/apuntes/ia/gemini.py)) y Claude ([`ia/claude.py`](src/apuntes/ia/claude.py)). Probadas con la API real: ver [Ejemplo real](#ejemplo-real) |
+| Clave en `.env`, ignorado desde el primer commit, y `.env.example` documentado | [`.gitignore`](.gitignore), [`.env.example`](.env.example) y [Configurar la clave](#configurar-la-clave-gratis-con-gemini) |
+| Ninguna clave en el historial | Los tests nunca ven una clave real: la fixture `_sin_credenciales_reales` en [`tests/conftest.py`](tests/conftest.py) |
+| Si no hay red, la CLI lo explica y sigue con las acciones sin IA | [Sin clave o sin internet](#sin-clave-o-sin-internet). Tests `test_sin_ia_el_pipeline_sigue_con_los_pasos_sin_ia`, `test_sin_ia_la_accion_de_ia_sale_con_1_y_lo_explica` y `test_acciones_avisa_si_falta_la_clave` |
+| *(Extra)* | Caché por contenido, y `--simular` no gasta nada. Test `test_resumir_no_llama_a_la_ia_al_simular`. [ADR 0003](docs/adr/0003-proveedor-ia.md) |
+
+### Robustez: excepciones y entradas feas (15 %)
+
+| La rúbrica pide (Excelente) | Evidencia |
+|---|---|
+| Excepciones propias con mensajes humanos | [`errores.py`](src/apuntes/errores.py): `ConfigError`, `AccionNoValida`, `CarpetaNoValida`, `FicheroError`, `ErrorIA`, `IANoDisponible`, `DocumentoNoSoportado` y `EjecucionInterrumpida`. Cada una tiene mensaje, pista y código de salida |
+| Ningún traceback ante errores previsibles | `_GrupoApuntes` en [`cli.py`](src/apuntes/cli.py) los convierte en mensaje más código de salida ([códigos](#códigos-de-salida)). Test `test_listar_carpeta_inexistente_sale_con_1_sin_traceback` |
+| Nunca se pierde un fichero por un fallo a medias | Escritura atómica en [`disco.py`](src/apuntes/disco.py) y [`operaciones.py`](src/apuntes/operaciones.py). Tests `test_si_falla_a_medias_el_original_queda_intacto`, `test_mover_entre_discos_no_deja_el_destino_a_medias` y `test_si_el_disco_cambia_tras_planificar_se_detiene_sin_perder_nada` |
+| Aserciones en desarrollo | `assert` sobre invariantes internas: por ejemplo, en [`acciones.py`](src/apuntes/acciones.py), que cada tipo tenga modelo y no se registre dos veces, y en [`ficheros.py`](src/apuntes/ficheros.py), que un tamaño no sea negativo |
+
+### Diseño en clases y módulos (10 %)
+
+| La rúbrica pide (Excelente) | Evidencia |
+|---|---|
+| Responsabilidades separadas | Interfaz, motor, acciones y proveedor de IA en módulos distintos (ver el mapa siguiente) |
+| Visibilidad cuidada | Lo interno lleva `_` (`_GrupoApuntes`, `Vista._ficheros`, `_cliente_api`…). Los modelos de configuración son inmutables (`frozen=True`) |
+| Métodos estáticos con sentido, como fábricas desde la configuración | `Accion.desde_config()` elige la clase según el `tipo` del JSON, y además `Configuracion.desde_fichero()`, `Documento.desde_fichero()` e `InfoFichero.desde_ruta()` |
+| *(Extra)* | Patrones documentados: registro de tipos con `__init_subclass__`, decorador de caché (`ProveedorConCache`) e inyección de dependencias (papelera, IA, historial) para poder probarlo todo |
+
+```text
+src/apuntes/
+├── cli.py            Interfaz (Typer + Rich): solo lee argumentos y pinta; sin lógica
+├── config.py         Esquema de acciones.json (Pydantic) y búsqueda del fichero
+├── motor.py          Planifica sobre una Vista virtual del disco y aplica en orden
+├── acciones.py       Un tipo de acción = una clase; la fábrica es Accion.desde_config()
+├── operaciones.py    Mover, Copiar, EnviarAPapelera, Escribir, GenerarConIA, CrearZip…
+├── historial.py      Registro de ejecuciones y cálculo de deshacer
+├── clasificador.py   Asignatura por palabras clave (sin IA)
+├── ficheros.py       Inspección de carpetas (solo lectura)
+├── disco.py          Escritura atómica
+├── errores.py        Jerarquía de excepciones propias
+└── ia/
+    ├── proveedor.py  Interfaz común ProveedorIA
+    ├── gemini.py     Proveedor Gemini (gratis, por defecto)
+    ├── claude.py     Proveedor Claude
+    ├── cache.py      Decorador con caché por huella SHA-256
+    ├── prompts.py    Instrucciones comunes a los dos proveedores
+    ├── documento.py  Fichero → algo que la IA pueda leer
+    └── entorno.py    .env y elección de proveedor
+```
+
+### Pruebas y calidad (15 %)
+
+| La rúbrica pide (Excelente) | Evidencia |
+|---|---|
+| Camino feliz y 3 casos feos | 180 tests en [`tests/`](tests/), con un 92 % de cobertura. Hay decenas de casos feos: JSON roto, ruta inexistente, disco que falla a medias, sin red, clave inválida, modelo saturado… |
+| En carpetas temporales | Todos usan `tmp_path`. Fixtures que sustituyen la papelera, la IA, el historial y las credenciales: [`tests/conftest.py`](tests/conftest.py) |
+| Ejecutadas en GitHub Actions | [`tests.yml`](.github/workflows/tests.yml) ejecuta `ruff` y `pytest` en Linux, macOS y Windows, con Python 3.12 y 3.13 |
+| Auditadas por el alumno (sabe explicar cada aserción) | [Guía de los tests](docs/tests.md): qué comprueba cada test y por qué |
+
+### Instalación, documentación y proceso (10 %)
+
+| La rúbrica pide (Excelente) | Evidencia |
+|---|---|
+| Se instala con una orden siguiendo el README | [Instalación](#instalación), con `uv tool install` o `pipx install` |
+| Release v1.0 etiquetada con changelog | [Release v1.0.0](https://github.com/marcalvear/cli-apuntes/releases/tag/v1.0.0) y [CHANGELOG.md](CHANGELOG.md) |
+| Historial con ramas y PR legibles | 7 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr+is%3Amerged), uno por fase: esqueleto, configuración, motor, IA, Gemini, historial y release. `main` está protegida: todo entra por PR |
 
 ## Desarrollo
 
