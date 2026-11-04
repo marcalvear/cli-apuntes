@@ -67,7 +67,7 @@ VALIDO = (
 
 def test_validar_fichero_correcto(runner: CliRunner, tmp_path: Path) -> None:
     ruta = tmp_path / "acciones.json"
-    ruta.write_text(VALIDO)
+    ruta.write_text(VALIDO, encoding="utf-8")
     resultado = runner.invoke(app, ["--config", str(ruta), "validar"])
     assert resultado.exit_code == 0
     assert "es válido: 1 acciones" in resultado.output
@@ -77,7 +77,7 @@ def test_validar_fichero_invalido_sale_con_3_y_nombra_el_campo(
     runner: CliRunner, tmp_path: Path
 ) -> None:
     ruta = tmp_path / "acciones.json"
-    ruta.write_text(VALIDO.replace('"tipo": "borrar"', '"tipo": "borar"'))
+    ruta.write_text(VALIDO.replace('"tipo": "borrar"', '"tipo": "borar"'), encoding="utf-8")
     resultado = runner.invoke(app, ["--config", str(ruta), "validar"])
     assert resultado.exit_code == 3
     assert "acciones[0] (limpiar): tipo desconocido" in resultado.output
@@ -92,7 +92,7 @@ def test_acciones_sin_fichero_sale_con_3(runner: CliRunner, tmp_path: Path) -> N
 
 def test_acciones_lista_nombres_y_marcas(runner: CliRunner, tmp_path: Path) -> None:
     ruta = tmp_path / "acciones.json"
-    ruta.write_text(VALIDO)
+    ruta.write_text(VALIDO, encoding="utf-8")
     resultado = runner.invoke(app, ["-c", str(ruta), "acciones"])
     assert resultado.exit_code == 0
     assert "limpiar" in resultado.output
@@ -108,19 +108,19 @@ def test_init_crea_un_fichero_valido(runner: CliRunner, tmp_path: Path) -> None:
 
 def test_init_no_sobrescribe_sin_forzar(runner: CliRunner, tmp_path: Path) -> None:
     ruta = tmp_path / "acciones.json"
-    ruta.write_text("mío")
+    ruta.write_text("mío", encoding="utf-8")
     resultado = runner.invoke(app, ["init", str(ruta)])
     assert resultado.exit_code == 1
-    assert ruta.read_text() == "mío"
+    assert ruta.read_text(encoding="utf-8") == "mío"
 
 
 def test_init_con_forzar_guarda_copia(runner: CliRunner, tmp_path: Path) -> None:
     ruta = tmp_path / "acciones.json"
-    ruta.write_text("mío")
+    ruta.write_text("mío", encoding="utf-8")
     resultado = runner.invoke(app, ["init", str(ruta), "--forzar"])
     assert resultado.exit_code == 0
-    assert (tmp_path / "acciones.json.bak").read_text() == "mío"
-    assert ruta.read_text() != "mío"
+    assert (tmp_path / "acciones.json.bak").read_text(encoding="utf-8") == "mío"
+    assert ruta.read_text(encoding="utf-8") != "mío"
 
 
 # --- ejecutar ---------------------------------------------------------------
@@ -138,11 +138,11 @@ CONFIG_EJECUTAR = (
 def entorno(tmp_path: Path) -> tuple[Path, Path]:
     """(acciones.json, carpeta de trabajo con un .tmp y un .pdf)."""
     config = tmp_path / "acciones.json"
-    config.write_text(CONFIG_EJECUTAR)
+    config.write_text(CONFIG_EJECUTAR, encoding="utf-8")
     trabajo = tmp_path / "trabajo"
     trabajo.mkdir()
-    (trabajo / "basura.tmp").write_text("x")
-    (trabajo / "tema.pdf").write_text("pdf")
+    (trabajo / "basura.tmp").write_text("x", encoding="utf-8")
+    (trabajo / "tema.pdf").write_text("pdf", encoding="utf-8")
     return config, trabajo
 
 
