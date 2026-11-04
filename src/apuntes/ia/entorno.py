@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
-from apuntes.ia.cache import ProveedorConCache
-from apuntes.ia.claude import MODELO_POR_DEFECTO, ProveedorClaude
-from apuntes.ia.proveedor import ProveedorIA
+if TYPE_CHECKING:
+    from apuntes.ia.proveedor import ProveedorIA
 
 VARIABLE_MODELO = "APUNTES_MODELO"
 
@@ -31,6 +31,13 @@ def hay_clave() -> bool:
 
 
 def crear_proveedor() -> ProveedorIA:
-    """Fábrica del proveedor configurado, envuelto en la caché."""
+    """Fábrica del proveedor configurado, envuelto en la caché.
+
+    Importa el SDK de Anthropic aquí y no arriba: así las órdenes que no usan
+    IA arrancan sin cargarlo.
+    """
+    from apuntes.ia.cache import ProveedorConCache
+    from apuntes.ia.claude import MODELO_POR_DEFECTO, ProveedorClaude
+
     modelo = os.environ.get(VARIABLE_MODELO) or MODELO_POR_DEFECTO
     return ProveedorConCache(ProveedorClaude(modelo=modelo))

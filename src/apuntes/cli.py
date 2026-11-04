@@ -23,7 +23,9 @@ from apuntes.config import Configuracion
 from apuntes.disco import escribir_atomico
 from apuntes.errores import ApuntesError, ConfigError
 from apuntes.ficheros import TipoFichero, listar_carpeta, tamano_legible
+from apuntes.ia.entorno import cargar_env, hay_clave
 from apuntes.motor import Motor, Plan
+from apuntes.operaciones import GenerarConIA
 
 consola = Console()
 consola_err = Console(stderr=True)
@@ -74,6 +76,7 @@ def _global(
     ] = None,
 ) -> None:
     """Organiza tus apuntes y el material de clase con acciones definidas en acciones.json."""
+    cargar_env()
     ctx.obj = config
 
 
@@ -155,6 +158,13 @@ def acciones(ctx: typer.Context) -> None:
             descripcion += f"\n[dim]→ {' → '.join(accion.pasos)}[/]"
         tabla.add_row(accion.nombre, accion.tipo, descripcion, " ".join(marcas))
     consola.print(tabla)
+    con_ia = [a for a in configuracion.acciones if a.USA_IA]
+    if con_ia and not hay_clave():
+        consola.print(
+            f"[yellow]IA sin configurar[/] (falta ANTHROPIC_API_KEY): las {len(con_ia)} acciones "
+            f"con IA no se podrán ejecutar; las otras {len(configuracion.acciones) - len(con_ia)} "
+            "funcionan con normalidad. Ver README → IA."
+        )
     consola.print("[dim]Ejecuta una con: apuntes ejecutar NOMBRE [CARPETA] --simular[/]")
 
 
@@ -207,6 +217,7 @@ _COLORES = {
     "actualizar": "yellow",
     "comprimir": "magenta",
     "a la papelera": "red",
+    "generar con IA": "magenta",
 }
 _MAX_AVISOS = 15
 
@@ -218,6 +229,9 @@ def _mostrar_plan(plan: Plan) -> None:
         if varios:
             cabecera = f"[dim]Paso {numero}/{len(plan.pasos)}:[/] {cabecera}"
         consola.print(f"\n{cabecera} en [dim]{escape(str(paso.carpeta))}[/]")
+        if paso.omitido:
+            consola.print(f"  [yellow]Paso omitido:[/] {escape(paso.omitido)}")
+            continue
         if paso.operaciones:
             tabla = Table(show_header=True, header_style="dim", box=None, pad_edge=False)
             tabla.add_column("#", justify="right", style="dim")
@@ -265,9 +279,20 @@ def ejecutar(
     _mostrar_plan(plan)
     total = len(plan.operaciones)
 
+    omitidos = [p for p in plan.pasos if p.omitido]
+    if omitidos:
+        consola.print(
+            f"\n[yellow]Sin IA:[/] se omiten {len(omitidos)} paso(s); el resto se hace igual."
+        )
     if plan.vacio:
         consola.print("\n[green]Nada que hacer:[/] todo está ya en orden.")
         return
+    con_ia = sum(isinstance(op, GenerarConIA) for op in plan.operaciones)
+    if con_ia:
+        consola.print(
+            f"[dim]{con_ia} operación(es) llamarán a la IA al aplicarse "
+            "(lo ya generado antes sale de la caché).[/]"
+        )
     if simular:
         consola.print(
             f"\n[bold]Simulación:[/] {total} operaciones; no se ha cambiado nada.\n"
@@ -289,6 +314,44 @@ def ejecutar(
     consola.print(f"\n[bold green]✓[/] {aplicadas} operaciones aplicadas.")
     if any(op.destructiva for op in plan.operaciones):
         consola.print("[dim]Lo enviado a la papelera se puede recuperar desde allí.[/]")
+
+
+@app.command()
+def estado(ctx: typer.Context) -> None:
+    """Comprueba la configuración: fichero de acciones, clave de IA y conexión."""
+    from apuntes.ia.cache import ruta_cache_por_defecto
+    from apuntes.ia.entorno import crear_proveedor, ficheros_env
+
+    ruta = _ruta_config(ctx)
+    try:
+        configuracion = Configuracion.desde_fichero(ruta)
+        consola.print(
+            f"[green]✓[/] Acciones: «{escape(str(ruta))}» ({len(configuracion.acciones)} acciones)"
+        )
+    except ConfigError as error:
+        consola.print(f"[red]✗[/] Acciones: {escape(error.mensaje)}  [dim](apuntes validar)[/]")
+
+    env = [r for r in ficheros_env() if r.is_file()]
+    consola.print(
+        f"[green]✓[/] .env: {', '.join(escape(str(r)) for r in env)}"
+        if env
+        else "[dim]·[/] .env: no hay (se usan las variables de entorno)"
+    )
+    proveedor = crear_proveedor()
+    try:
+        proveedor.comprobar()
+        consola.print(
+            f"[green]✓[/] IA: clave encontrada y API accesible (modelo {proveedor.modelo})"
+        )
+    except ApuntesError as error:
+        consola.print(f"[yellow]![/] IA: {escape(error.mensaje)}")
+        if error.pista:
+            consola.print(f"  [dim]{escape(error.pista)}[/]")
+    cache = ruta_cache_por_defecto()
+    if cache.exists():
+        consola.print(
+            f"[dim]·[/] Caché de IA: {escape(str(cache))} ({tamano_legible(cache.stat().st_size)})"
+        )
 
 
 def main() -> None:
