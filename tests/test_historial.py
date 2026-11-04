@@ -100,7 +100,7 @@ def test_el_historial_guarda_solo_las_ultimas(historial: Historial, tmp_path: Pa
 
 def test_un_historial_danado_se_trata_como_vacio(tmp_path: Path) -> None:
     ruta = tmp_path / "historial.json"
-    ruta.write_text("{roto")
+    ruta.write_text("{roto", encoding="utf-8")
     assert Historial(ruta).ejecuciones() == []
 
 
@@ -247,7 +247,7 @@ def test_las_carpetas_se_quitan_de_dentro_afuera(tmp_path: Path) -> None:
 @pytest.fixture
 def config(tmp_path: Path) -> Path:
     ruta = tmp_path / "acciones.json"
-    ruta.write_text(json.dumps({"version": 1, "acciones": ACCIONES}))
+    ruta.write_text(json.dumps({"version": 1, "acciones": ACCIONES}), encoding="utf-8")
     return ruta
 
 
