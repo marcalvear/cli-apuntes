@@ -91,3 +91,13 @@ def _sin_credenciales_reales(monkeypatch: pytest.MonkeyPatch) -> None:
     ):
         monkeypatch.delenv(variable, raising=False)
     monkeypatch.setattr("apuntes.cli.cargar_env", lambda: None)
+
+
+@pytest.fixture(autouse=True)
+def historial(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch):
+    """Ningún test escribe en el historial real del usuario."""
+    from apuntes.historial import Historial
+
+    ruta = tmp_path_factory.mktemp("historial") / "historial.json"
+    monkeypatch.setattr("apuntes.historial.ruta_por_defecto", lambda: ruta)
+    return Historial(ruta)

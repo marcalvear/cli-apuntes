@@ -82,6 +82,13 @@ class Operacion(ABC):
     def _ejecutar(self, papelera: Papelera) -> None: ...
 
     @abstractmethod
+    def registro(self) -> dict[str, object]:
+        """Lo que hay que guardar en el historial para poder deshacerla.
+
+        Se llama *antes* de aplicar, para capturar el estado previo si hace falta.
+        """
+
+    @abstractmethod
     def _comprobar(self) -> None:
         """Lanza FicheroError si las condiciones del plan ya no se cumplen."""
 
@@ -140,6 +147,14 @@ class Mover(Operacion):
         if _ocupado_por_otro(self.origen, self.destino) and not self.sobrescribe:
             raise FicheroError(f"«{self.destino}» ya existe: ha aparecido desde que se planificó.")
 
+    def registro(self) -> dict[str, object]:
+        return {
+            "op": "mover",
+            "origen": str(self.origen),
+            "destino": str(self.destino),
+            "sobrescribe": _ocupado_por_otro(self.origen, self.destino),
+        }
+
     def _ejecutar(self, papelera: Papelera) -> None:
         if _ocupado_por_otro(self.origen, self.destino):  # solo si sobrescribe
             papelera(self.destino)  # el anterior se puede recuperar de la papelera
@@ -164,6 +179,14 @@ class Copiar(Operacion):
         if self.destino.exists() and not self.sobrescribe:
             raise FicheroError(f"«{self.destino}» ya existe: ha aparecido desde que se planificó.")
 
+    def registro(self) -> dict[str, object]:
+        return {
+            "op": "copiar",
+            "origen": str(self.origen),
+            "destino": str(self.destino),
+            "sobrescribe": self.destino.exists(),
+        }
+
     def _ejecutar(self, papelera: Papelera) -> None:
         if self.destino.exists():
             papelera(self.destino)
@@ -181,6 +204,9 @@ class EnviarAPapelera(Operacion):
 
     def _comprobar(self) -> None:
         _debe_existir(self.ruta)
+
+    def registro(self) -> dict[str, object]:
+        return {"op": "papelera", "ruta": str(self.ruta)}
 
     def _ejecutar(self, papelera: Papelera) -> None:
         papelera(self.ruta)
@@ -201,6 +227,15 @@ class Escribir(Operacion):
     def _comprobar(self) -> None:
         if self.ruta.exists() and not self.sobrescribe:
             raise FicheroError(f"«{self.ruta}» ya existe: ha aparecido desde que se planificó.")
+
+    def registro(self) -> dict[str, object]:
+        anterior = None
+        if self.ruta.exists():  # se guarda para poder restaurarlo (son índices pequeños)
+            try:
+                anterior = self.ruta.read_text("utf-8")
+            except (OSError, UnicodeDecodeError):
+                anterior = None
+        return {"op": "escribir", "ruta": str(self.ruta), "anterior": anterior}
 
     def _ejecutar(self, papelera: Papelera) -> None:
         escribir_atomico(self.ruta, self.contenido)
@@ -224,6 +259,9 @@ class GenerarConIA(Operacion):
         if self.ruta.exists():
             raise FicheroError(f"«{self.ruta}» ya existe: ha aparecido desde que se planificó.")
 
+    def registro(self) -> dict[str, object]:
+        return {"op": "generar", "ruta": str(self.ruta)}
+
     def _ejecutar(self, papelera: Papelera) -> None:
         contenido = self.generar()  # puede lanzar ErrorIA: el motor lo informa
         escribir_atomico(self.ruta, contenido if contenido.endswith("\n") else contenido + "\n")
@@ -243,6 +281,9 @@ class CrearZip(Operacion):
             _debe_existir(fichero)
         if self.ruta.exists():
             raise FicheroError(f"«{self.ruta}» ya existe: ha aparecido desde que se planificó.")
+
+    def registro(self) -> dict[str, object]:
+        return {"op": "zip", "ruta": str(self.ruta)}
 
     def _ejecutar(self, papelera: Papelera) -> None:
         self.ruta.parent.mkdir(parents=True, exist_ok=True)
