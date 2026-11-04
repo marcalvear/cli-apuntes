@@ -208,3 +208,10 @@ def test_proveedor_desconocido(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(IANoDisponible, match="desconocido") as error:
         entorno.crear_proveedor()
     assert "gemini, claude" in (error.value.pista or "")
+
+
+def test_un_modelo_saturado_no_se_reintenta_en_la_misma_ejecucion() -> None:
+    gem, cliente = proveedor(error_servidor(), respuesta("# 1"), respuesta("# 2"))
+    gem.resumir(PDF)
+    gem.resumir(PDF)
+    assert [p["model"] for p in cliente.peticiones] == ["modelo-a", "modelo-b", "modelo-b"]

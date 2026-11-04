@@ -328,11 +328,13 @@ class ClasificarConIA(MoverFicheros, tipo="ia-clasificar"):
         if documento is None:
             return None
         clasificacion = ctx.ia().clasificar(documento, ctx.configuracion.asignaturas)
+        if clasificacion.asignatura is None:
+            ctx.avisar(origen, f"según la IA no es de ninguna asignatura ({clasificacion.motivo})")
+            return None
         if not clasificacion.fiable:
-            asignatura = clasificacion.asignatura or "ninguna"
             ctx.avisar(
                 origen,
-                f"la IA no lo tiene claro ({asignatura}, confianza {clasificacion.confianza}: "
+                f"la IA duda ({clasificacion.asignatura}, confianza baja: "
                 f"{clasificacion.motivo}); no se toca",
             )
             return None

@@ -67,6 +67,8 @@ class ProveedorGemini(ProveedorIA):
         self._modelos = modelos
         self.modelo = modelos[0]  # el preferido identifica las respuestas en la caché
         self._cliente = cliente  # inyectable en tests; si no, se crea al usarlo
+        #: Modelos que ya han fallado por saturación o cuota en esta ejecución: no se reintentan.
+        self._descartados: dict[str, str] = {}
 
     # -- Disponibilidad --
 
@@ -141,22 +143,23 @@ class ProveedorGemini(ProveedorIA):
             response_json_schema=esquema,
         )
         contenido = [_parte_documento(documento), instrucciones]
-        saturados: list[str] = []
         for modelo in self._modelos:
+            if modelo in self._descartados:
+                continue
             try:
                 respuesta = self._cliente_api().models.generate_content(
                     model=modelo, contents=contenido, config=config
                 )
             except errors.ClientError as error:
                 if error.code == 429:  # cuota gratuita agotada en este modelo: probamos otro
-                    saturados.append(f"{modelo} (sin cuota)")
+                    self._descartados[modelo] = "sin cuota"
                     continue
                 if error.code == 404:  # modelo retirado: probamos el siguiente
-                    saturados.append(f"{modelo} (no existe)")
+                    self._descartados[modelo] = "no existe"
                     continue
                 raise _traducir_error_cliente(error, documento) from None
             except errors.ServerError:
-                saturados.append(f"{modelo} (saturado)")
+                self._descartados[modelo] = "saturado"
                 continue
             except _ERRORES_RED:
                 raise IANoDisponible(
@@ -165,10 +168,9 @@ class ProveedorGemini(ProveedorIA):
                 ) from None
             return _texto_de(respuesta, documento)
 
+        motivos = ", ".join(f"{m} ({motivo})" for m, motivo in self._descartados.items())
         raise ErrorIA(
-            "Ningún modelo de Gemini ha podido responder ahora mismo: "
-            + ", ".join(saturados)
-            + ".",
+            f"Ningún modelo de Gemini ha podido responder ahora mismo: {motivos}.",
             pista="La capa gratuita tiene límites por minuto y por día: espera un poco y vuelve "
             "a lanzar la acción (lo ya hecho está en caché).",
         )

@@ -235,7 +235,7 @@ def test_ia_clasificar_mueve_segun_el_contenido(
     assert (tmp_path / "Bases de Datos" / "documento(3).pdf").exists()
     assert (tmp_path / "otro.pdf").exists()  # la IA no lo tiene claro: no se toca
     avisos = " ".join(plan.pasos[0].avisos)
-    assert "no lo tiene claro" in avisos
+    assert "no es de ninguna asignatura" in avisos
     assert "solo lee PDF" in avisos  # el .pptx se explica, no se rompe
 
 
