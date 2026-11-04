@@ -251,7 +251,8 @@ def test_resumir_no_llama_a_la_ia_al_simular(
 
     m.aplicar(plan)
     assert ia.llamadas == [("resumir", "tema1.pdf")]
-    assert (tmp_path / "tema1.resumen.md").read_text(encoding="utf-8").startswith("# Resumen de tema1.pdf")
+    resumen = (tmp_path / "tema1.resumen.md").read_text(encoding="utf-8")
+    assert resumen.startswith("# Resumen de tema1.pdf")
 
 
 def test_resumir_no_regenera_lo_ya_hecho(
@@ -277,7 +278,8 @@ def test_preguntas_en_carpeta_destino(tmp_path: Path, papelera: PapeleraFalsa, i
         },
     )
     m.aplicar(m.planificar("p", tmp_path))
-    assert (tmp_path / "Repaso" / "tema1.preguntas.md").read_text(encoding="utf-8").startswith("# 5 preguntas")
+    preguntas = (tmp_path / "Repaso" / "tema1.preguntas.md").read_text(encoding="utf-8")
+    assert preguntas.startswith("# 5 preguntas")
 
 
 def test_sin_ia_una_accion_de_ia_falla_con_mensaje(tmp_path: Path, papelera: PapeleraFalsa) -> None:
