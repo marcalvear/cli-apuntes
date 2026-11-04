@@ -57,7 +57,7 @@ def test_listar_carpeta_inexistente_lanza_error_propio(tmp_path: Path) -> None:
 
 def test_listar_un_fichero_lanza_error_propio(tmp_path: Path) -> None:
     fichero = tmp_path / "a.txt"
-    fichero.write_text("hola")
+    fichero.write_text("hola", encoding="utf-8")
     with pytest.raises(CarpetaNoValida, match="no una carpeta"):
         listar_carpeta(fichero)
 
@@ -67,6 +67,6 @@ def test_listar_ignora_enlaces_rotos(tmp_path: Path) -> None:
         (tmp_path / "roto").symlink_to(tmp_path / "destino-que-no-existe")
     except OSError:
         pytest.skip("este sistema no permite crear enlaces simbólicos (Windows sin permisos)")
-    (tmp_path / "bueno.txt").write_text("ok")
+    (tmp_path / "bueno.txt").write_text("ok", encoding="utf-8")
 
     assert [i.nombre for i in listar_carpeta(tmp_path)] == ["bueno.txt"]

@@ -30,6 +30,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+# Con PYTHONWARNDEFAULTENCODING=1 (activado en CI), leer o escribir texto sin
+# indicar la codificación es un error: en Windows sería cp1252 y no UTF-8.
+filterwarnings = ["error::EncodingWarning"]
 
 [tool.ruff]
 line-length = 100
