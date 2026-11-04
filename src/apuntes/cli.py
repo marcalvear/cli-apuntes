@@ -23,6 +23,7 @@ from apuntes.config import Configuracion
 from apuntes.disco import escribir_atomico
 from apuntes.errores import ApuntesError, ConfigError
 from apuntes.ficheros import TipoFichero, listar_carpeta, tamano_legible
+from apuntes.motor import Motor, Plan
 
 consola = Console()
 consola_err = Console(stderr=True)
@@ -196,6 +197,98 @@ def init(
     escribir_atomico(ruta, plantilla)
     consola.print(f"[bold green]✓[/] Creado «{escape(str(ruta))}».")
     consola.print("[dim]Revisa las asignaturas y prueba: apuntes acciones[/]")
+
+
+_COLORES = {
+    "mover": "blue",
+    "renombrar": "cyan",
+    "copiar": "green",
+    "crear": "green",
+    "actualizar": "yellow",
+    "comprimir": "magenta",
+    "a la papelera": "red",
+}
+_MAX_AVISOS = 15
+
+
+def _mostrar_plan(plan: Plan) -> None:
+    varios = len(plan.pasos) > 1
+    for numero, paso in enumerate(plan.pasos, start=1):
+        cabecera = f"[bold]{escape(paso.accion.nombre)}[/] [dim]({paso.accion.tipo})[/]"
+        if varios:
+            cabecera = f"[dim]Paso {numero}/{len(plan.pasos)}:[/] {cabecera}"
+        consola.print(f"\n{cabecera} en [dim]{escape(str(paso.carpeta))}[/]")
+        if paso.operaciones:
+            tabla = Table(show_header=True, header_style="dim", box=None, pad_edge=False)
+            tabla.add_column("#", justify="right", style="dim")
+            tabla.add_column("Operación", no_wrap=True)
+            tabla.add_column("Fichero", overflow="fold")
+            tabla.add_column("Destino / detalle", overflow="fold")
+            for i, operacion in enumerate(paso.operaciones, start=1):
+                verbo, objeto, destino = operacion.describir(paso.carpeta)
+                color = _COLORES.get(verbo, "white")
+                tabla.add_row(str(i), f"[{color}]{verbo}[/]", escape(objeto), escape(destino))
+            consola.print(tabla)
+        else:
+            consola.print("  [dim]Nada que hacer en este paso.[/]")
+        for aviso in paso.avisos[:_MAX_AVISOS]:
+            consola.print(f"  [yellow]·[/] [dim]{escape(aviso)}[/]")
+        if len(paso.avisos) > _MAX_AVISOS:
+            consola.print(f"  [dim]… y {len(paso.avisos) - _MAX_AVISOS} avisos más.[/]")
+
+
+@app.command()
+def ejecutar(
+    ctx: typer.Context,
+    nombre: Annotated[str, typer.Argument(help="Nombre de la acción (ver: apuntes acciones).")],
+    carpeta: Annotated[
+        Path | None,
+        typer.Argument(
+            help="Carpeta sobre la que actuar. Por defecto, el 'origen' de la acción "
+            "o la carpeta actual.",
+            show_default=False,
+        ),
+    ] = None,
+    simular: Annotated[
+        bool, typer.Option("--simular", "-n", help="Muestra qué haría sin tocar nada.")
+    ] = False,
+    si: Annotated[
+        bool, typer.Option("--si", "-y", help="No pide confirmación (para scripts).")
+    ] = False,
+) -> None:
+    """Ejecuta una acción. Primero enseña el plan; si es destructiva, pide confirmación."""
+    if simular and si:
+        raise typer.BadParameter("--simular y --si no tienen sentido juntas.", param_hint="--si")
+
+    motor = Motor(_cargar(ctx))
+    plan = motor.planificar(nombre, carpeta)
+    _mostrar_plan(plan)
+    total = len(plan.operaciones)
+
+    if plan.vacio:
+        consola.print("\n[green]Nada que hacer:[/] todo está ya en orden.")
+        return
+    if simular:
+        consola.print(
+            f"\n[bold]Simulación:[/] {total} operaciones; no se ha cambiado nada.\n"
+            f"[dim]Para aplicarlas: apuntes ejecutar {escape(nombre)}"
+            f"{' ' + escape(str(carpeta)) if carpeta else ''}[/]"
+        )
+        return
+    if plan.debe_confirmar and not si:
+        consola.print()
+        try:
+            aceptado = typer.confirm(f"¿Aplicar estas {total} operaciones?", default=False)
+        except typer.Abort:
+            aceptado = False
+        if not aceptado:
+            consola_err.print("Cancelado: no se ha tocado nada.")
+            raise typer.Exit(1)
+
+    aplicadas = motor.aplicar(plan)
+    consola.print(f"\n[bold green]✓[/] {aplicadas} operaciones aplicadas.")
+    if any(op.destructiva for op in plan.operaciones):
+        consola.print("[dim]Lo enviado a la papelera se puede recuperar desde allí.[/]")
 
 
 def main() -> None:
