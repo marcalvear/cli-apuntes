@@ -7,8 +7,8 @@ ejercicios que se acumulan en Descargas. Las acciones (mover, renombrar,
 deduplicar, resumir con IA…) no están escritas en el código: se describen en un
 fichero `acciones.json` que el motor interpreta.
 
-> **Estado:** en desarrollo (v0.1.0). Funcionan todas las órdenes y los 7 tipos de acción sin
-> IA. Las acciones con IA llegan en la siguiente versión.
+> **Estado:** en desarrollo (v0.1.0). Funcionan todas las órdenes y los 10 tipos de acción,
+> 3 de ellos con IA (Claude).
 
 ## Instalación
 
@@ -39,6 +39,7 @@ apuntes listar . --todos    # incluye ficheros ocultos
 apuntes init                # crea un acciones.json de ejemplo en la carpeta actual
 apuntes acciones            # lista las acciones definidas
 apuntes validar             # comprueba acciones.json (código 3 si es inválido)
+apuntes estado              # fichero de acciones, clave de IA, conexión y caché
 apuntes -c ~/otro.json acciones   # usa otro fichero de acciones
 
 apuntes ejecutar ordenar-todo ~/Descargas --simular   # enseña el plan sin tocar nada
@@ -177,7 +178,7 @@ Todas las condiciones que se indiquen deben cumplirse a la vez.
 | `deduplicar` | `conservar` | Detecta ficheros con el mismo contenido y envía las copias a la papelera. Confirma por defecto. |
 | `archivar` | `destino` (.zip), `borrar_originales` | Comprime los ficheros en un zip. Si borra los originales, confirma. |
 | `indice` | `fichero`, `titulo` | Genera un índice Markdown (por defecto `INDICE.md`) del material. |
-| `ia-clasificar` | `destino` | 🤖 La IA lee el contenido, decide la asignatura y mueve el fichero. |
+| `ia-clasificar` | `destino` (con `{asignatura}`) | 🤖 La IA lee el contenido, decide la asignatura y mueve el fichero. |
 | `ia-resumir` | `destino` | 🤖 Crea un resumen `.md` de cada documento. |
 | `ia-preguntas` | `destino`, `numero` | 🤖 Crea preguntas tipo test con solución (1 a 50; por defecto 10). |
 | `pipeline` | `pasos` | Ejecuta en orden otras acciones, indicadas por su nombre. |
@@ -211,6 +212,64 @@ Error: «acciones.json» tiene 2 problema(s):
 Pista: Comprueba el esquema en el README o ejecuta: apuntes validar
 ```
 
+## IA (opcional)
+
+Tres tipos de acción usan la API de Claude:
+
+| Tipo | Qué hace | ¿Cuándo llama a la IA? |
+|---|---|---|
+| `ia-clasificar` | Lee cada PDF y lo mueve a la carpeta de su asignatura. Si no está segura, no lo toca. | Al planificar, porque necesita saber el destino |
+| `ia-resumir` | Crea `tema.resumen.md` con los conceptos clave. | Al aplicar: `--simular` es gratis |
+| `ia-preguntas` | Crea `tema.preguntas.md` con preguntas tipo test y sus soluciones. | Al aplicar: `--simular` es gratis |
+
+Lee PDF (incluidas las tablas y los diagramas de las diapositivas), `.txt` y `.md`.
+El resto de ficheros se saltan con un aviso.
+
+### Configurar la clave
+
+1. Crea una clave en [console.anthropic.com](https://console.anthropic.com) → *API keys*.
+2. Copia la plantilla y pon la clave:
+
+   ```bash
+   cp .env.example .env          # o en ~/.config/apuntes/.env para todas las carpetas
+   ```
+
+   ```bash
+   ANTHROPIC_API_KEY=tu-clave
+   ```
+
+3. Comprueba que todo está bien:
+
+   ```bash
+   apuntes estado
+   ```
+
+`.env` está en `.gitignore` desde el primer commit: **la clave nunca se sube al repositorio**.
+También se puede exportar `ANTHROPIC_API_KEY` en la terminal. El modelo por defecto es
+`claude-opus-5-5`; se cambia con `APUNTES_MODELO`.
+
+### Sin clave o sin internet
+
+La IA es opcional. Sin ella:
+
+- `apuntes acciones` y `apuntes estado` avisan de qué falta;
+- una acción con IA termina con un mensaje claro y el código 1;
+- en un `pipeline`, **los pasos con IA se omiten y el resto se ejecuta igual**:
+
+```text
+Paso 4/5: clasificar-con-ia (ia-clasificar) en /Users/marc/pruebas-tareas
+  Paso omitido: No hay conexión con la API de Claude (¿sin internet?).
+Sin IA: se omiten 1 paso(s); el resto se hace igual.
+```
+
+### Caché
+
+Cada respuesta se guarda en `~/.cache/apuntes/ia.json`, asociada al contenido del fichero
+y no a su nombre. Simular y luego aplicar no paga dos veces, y si una ejecución se corta,
+al repetirla lo ya hecho sale gratis. Los `.resumen.md` y `.preguntas.md` que ya existen
+no se regeneran: si quieres uno nuevo, borra el anterior. El diseño está explicado en el
+[ADR 0003](docs/adr/0003-proveedor-ia.md).
+
 ## Desarrollo
 
 ```bash
@@ -221,7 +280,8 @@ uv run pytest                # tests
 uv run ruff check . && uv run ruff format --check .
 ```
 
-Los tests usan carpetas temporales y nunca tocan ficheros reales. GitHub Actions
+Los tests usan carpetas temporales y nunca tocan ficheros reales, ni la papelera, ni
+la API de Claude: una IA falsa responde por ella. GitHub Actions
 los ejecuta en Linux, macOS y Windows en cada push y pull request.
 
 Las decisiones de diseño están documentadas en [`docs/adr/`](docs/adr/).
