@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "asignaturas": [
+    { "nombre": "Programacion", "palabras_clave": ["prog", "java", "python", "poo", "clases", "excepciones"] },
+    { "nombre": "Bases de Datos", "palabras_clave": ["bd", "bbdd", "sql", "mysql", "consultas", "normalizacion"] },
+    { "nombre": "Sistemas Informaticos", "palabras_clave": ["si", "linux", "windows", "redes", "hardware", "bash"] },
+    { "nombre": "Lenguajes de Marcas", "palabras_clave": ["lm", "html", "css", "xml", "json", "xsd"] },
+    { "nombre": "Entornos de Desarrollo", "palabras_clave": ["ed", "git", "uml", "ide", "pruebas", "junit"] }
+  ],
+  "acciones": [
+    {
+      "nombre": "ordenar-por-asignatura",
+      "descripcion": "Mueve PDFs, diapositivas y documentos a la carpeta de su asignatura según su nombre",
+      "tipo": "mover",
+      "filtro": { "extensiones": [".pdf", ".pptx", ".ppt", ".docx", ".odt"] },
+      "destino": "Apuntes/{asignatura}"
+    },
+    {
+      "nombre": "renombrar-con-fecha",
+      "descripcion": "Pone la fecha delante del nombre: 2026-11-04_Tema3.pdf",
+      "tipo": "renombrar",
+      "filtro": { "extensiones": [".pdf", ".pptx", ".docx"], "patron": "^(?!\\d{4}-\\d{2}-\\d{2}_)" },
+      "plantilla": "{fecha:%Y-%m-%d}_{nombre}{ext}"
+    },
+    {
+      "nombre": "quitar-duplicados",
+      "descripcion": "Envía a la papelera las copias exactas (p. ej. Tema3 (1).pdf) y conserva la más antigua",
+      "tipo": "deduplicar",
+      "filtro": { "recursivo": true }
+    },
+    {
+      "nombre": "limpiar-temporales",
+      "descripcion": "Envía a la papelera temporales de Office y descargas a medias de más de 7 días",
+      "tipo": "borrar",
+      "filtro": { "patron": "(^~\\$|\\.tmp$|\\.crdownload$|\\.part$)", "mas_antiguo_que_dias": 7 }
+    },
+    {
+      "nombre": "archivar-antiguos",
+      "descripcion": "Comprime en un .zip el material de hace más de 6 meses y lo quita de la carpeta",
+      "tipo": "archivar",
+      "filtro": { "mas_antiguo_que_dias": 180 },
+      "destino": "Archivo/material-antiguo-{fecha:%Y-%m-%d}.zip",
+      "borrar_originales": true
+    },
+    {
+      "nombre": "crear-indice",
+      "descripcion": "Genera INDICE.md con todo el material de la carpeta, agrupado por tipo",
+      "tipo": "indice",
+      "filtro": { "recursivo": true },
+      "titulo": "Índice de apuntes"
+    },
+    {
+      "nombre": "clasificar-con-ia",
+      "descripcion": "La IA lee los PDFs con nombre poco claro y los mueve a su asignatura",
+      "tipo": "ia-clasificar",
+      "filtro": { "extensiones": [".pdf"] },
+      "destino": "Apuntes/{asignatura}"
+    },
+    {
+      "nombre": "resumir-tema",
+      "descripcion": "La IA resume cada PDF en un .md con los conceptos clave",
+      "tipo": "ia-resumir",
+      "filtro": { "extensiones": [".pdf"] },
+      "destino": "Resumenes"
+    },
+    {
+      "nombre": "preguntas-repaso",
+      "descripcion": "La IA crea 10 preguntas tipo test con solución para repasar cada tema",
+      "tipo": "ia-preguntas",
+      "filtro": { "extensiones": [".pdf"] },
+      "destino": "Repaso",
+      "numero": 10
+    },
+    {
+      "nombre": "ordenar-todo",
+      "descripcion": "Limpia temporales, quita duplicados, ordena por asignatura y crea el índice",
+      "tipo": "pipeline",
+      "pasos": ["limpiar-temporales", "quitar-duplicados", "ordenar-por-asignatura", "crear-indice"]
+    }
+  ]
+}
