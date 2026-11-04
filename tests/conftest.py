@@ -75,3 +75,11 @@ def ia(monkeypatch: pytest.MonkeyPatch):
     falsa = IAFalsa()
     monkeypatch.setattr("apuntes.motor._proveedor_por_defecto", lambda: falsa)
     return falsa
+
+
+@pytest.fixture(autouse=True)
+def _sin_credenciales_reales(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Los tests no ven la clave real ni leen el .env del ordenador."""
+    for variable in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "APUNTES_CONFIG"):
+        monkeypatch.delenv(variable, raising=False)
+    monkeypatch.setattr("apuntes.cli.cargar_env", lambda: None)

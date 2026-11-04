@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from apuntes import __version__
 from apuntes.cli import app
 from tests.conftest import PapeleraFalsa
+from tests.ia_falsa import IAFalsa
 
 
 def test_sin_argumentos_muestra_la_ayuda(runner: CliRunner) -> None:
@@ -228,3 +229,75 @@ def test_simular_y_si_juntas_es_error_de_uso(runner: CliRunner, entorno: tuple[P
     config, trabajo = entorno
     resultado = _ejecutar(runner, config, "limpiar", str(trabajo), "--simular", "--si")
     assert resultado.exit_code == 2
+
+
+# --- IA desde la CLI --------------------------------------------------------
+
+CONFIG_IA = (
+    '{"version": 1, "acciones": ['
+    '{"nombre": "limpiar", "descripcion": "d", "tipo": "borrar",'
+    ' "filtro": {"extensiones": [".tmp"]}},'
+    '{"nombre": "resumir", "descripcion": "d", "tipo": "ia-resumir"},'
+    '{"nombre": "todo", "descripcion": "d", "tipo": "pipeline", "pasos": ["limpiar", "resumir"]}]}'
+)
+
+
+@pytest.fixture
+def entorno_ia(tmp_path: Path) -> tuple[Path, Path]:
+    config = tmp_path / "acciones.json"
+    config.write_text(CONFIG_IA)
+    trabajo = tmp_path / "trabajo"
+    trabajo.mkdir()
+    (trabajo / "basura.tmp").write_text("x")
+    (trabajo / "tema1.pdf").write_bytes(b"%PDF-1.4 tema")
+    return config, trabajo
+
+
+def test_resumir_simulado_avisa_de_que_usara_la_ia(
+    runner: CliRunner, entorno_ia: tuple[Path, Path], ia: IAFalsa
+) -> None:
+    config, trabajo = entorno_ia
+    resultado = _ejecutar(runner, config, "resumir", str(trabajo), "--simular")
+    assert resultado.exit_code == 0
+    assert "generar con IA" in resultado.output
+    assert "llamarán a la IA" in resultado.output
+    assert ia.llamadas == []
+
+
+def test_sin_ia_la_accion_de_ia_sale_con_1_y_lo_explica(
+    runner: CliRunner, entorno_ia: tuple[Path, Path], ia: IAFalsa
+) -> None:
+    ia.disponible = False
+    config, trabajo = entorno_ia
+    resultado = _ejecutar(runner, config, "resumir", str(trabajo))
+    assert resultado.exit_code == 1
+    assert "No hay conexión" in resultado.output
+    assert "Traceback" not in resultado.output
+
+
+def test_sin_ia_el_pipeline_hace_el_resto(
+    runner: CliRunner, entorno_ia: tuple[Path, Path], ia: IAFalsa, papelera: PapeleraFalsa
+) -> None:
+    ia.disponible = False
+    config, trabajo = entorno_ia
+    resultado = _ejecutar(runner, config, "todo", str(trabajo), "--si")
+    assert resultado.exit_code == 0
+    assert "Paso omitido" in resultado.output
+    assert "se omiten 1 paso(s)" in resultado.output
+    assert papelera.recibidos == ["basura.tmp"]
+
+
+def test_acciones_avisa_si_falta_la_clave(runner: CliRunner, entorno_ia: tuple[Path, Path]) -> None:
+    config, _ = entorno_ia
+    resultado = runner.invoke(app, ["-c", str(config), "acciones"])
+    assert resultado.exit_code == 0
+    assert "IA sin configurar" in resultado.output
+    assert "las otras 2" in resultado.output
+
+
+def test_estado_sin_clave(runner: CliRunner, entorno_ia: tuple[Path, Path]) -> None:
+    config, _ = entorno_ia
+    resultado = runner.invoke(app, ["-c", str(config), "estado"])
+    assert resultado.exit_code == 0
+    assert "3 acciones" in resultado.output
+    assert "falta la clave ANTHROPIC_API_KEY" in resultado.output
