@@ -91,6 +91,9 @@ class Vista:
             return False
         return ruta.exists()
 
+    def __contains__(self, ruta: object) -> bool:
+        return ruta in self._ficheros
+
     def info(self, ruta: Path) -> InfoVirtual:
         return self._ficheros[ruta]
 

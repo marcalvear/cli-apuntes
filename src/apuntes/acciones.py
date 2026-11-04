@@ -240,14 +240,17 @@ class CrearIndice(Accion, tipo="indice"):
         indice = _resolver(self.config.fichero, ctx.carpeta)
         ficheros = [f for f in ficheros if f != indice]
         contenido = self._markdown(ficheros, ctx)
-        ctx.anadir(Escribir(indice, contenido, sobrescribe=ctx.vista.existe(indice)))
+        existe = ctx.vista.existe(indice)
+        if existe and _contenido_actual(indice, ctx) == contenido:
+            return  # ya está al día: repetir la acción no cambia nada
+        ctx.anadir(Escribir(indice, contenido, sobrescribe=existe))
 
     def _markdown(self, ficheros: list[Path], ctx: ContextoPlan) -> str:
         titulo = self.config.titulo or f"Índice de {ctx.carpeta.name}"
         lineas = [
             f"# {titulo}",
             "",
-            f"_Generado por apuntes el {ctx.ahora:%Y-%m-%d %H:%M} · {len(ficheros)} ficheros._",
+            f"_Generado por apuntes el {ctx.ahora:%Y-%m-%d} · {len(ficheros)} ficheros._",
         ]
         grupos: dict[str, list[Path]] = defaultdict(list)
         for fichero in ficheros:
@@ -266,6 +269,17 @@ class CrearIndice(Accion, tipo="indice"):
                     f"{tamano_legible(info.tamano)} | {info.modificado:%Y-%m-%d} |"
                 )
         return "\n".join(lineas) + "\n"
+
+
+def _contenido_actual(ruta: Path, ctx: ContextoPlan) -> str | None:
+    """El texto que hay ahora en `ruta` según la vista (None si no se puede leer)."""
+    contenido_en = ctx.vista.info(ruta).contenido_en if ruta in ctx.vista else ruta
+    if contenido_en is None:
+        return None
+    try:
+        return contenido_en.read_text("utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
 
 
 def tipos_ejecutables() -> frozenset[str]:
