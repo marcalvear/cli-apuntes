@@ -10,7 +10,7 @@ import pytest
 
 from apuntes.acciones import tipos_ejecutables
 from apuntes.config import TIPOS_ACCION, Configuracion
-from apuntes.errores import AccionNoValida, CarpetaNoValida, EjecucionInterrumpida
+from apuntes.errores import CarpetaNoValida, EjecucionInterrumpida
 from apuntes.motor import Motor, Plan
 from apuntes.operaciones import EnviarAPapelera, Mover
 from tests.conftest import PapeleraFalsa, crear_fichero
@@ -45,9 +45,9 @@ def ejecutar(m: Motor, nombre: str, carpeta: Path) -> Plan:
     return plan
 
 
-def test_todos_los_tipos_sin_ia_tienen_clase() -> None:
-    sin_ia = {t for t in TIPOS_ACCION if not t.startswith("ia-") and t != "pipeline"}
-    assert sin_ia <= tipos_ejecutables()
+def test_todos_los_tipos_tienen_clase_salvo_pipeline() -> None:
+    """pipeline no se ejecuta: el motor lo expande en sus pasos."""
+    assert tipos_ejecutables() == set(TIPOS_ACCION) - {"pipeline"}
 
 
 # --- Planificar no toca nada ------------------------------------------------
@@ -310,12 +310,6 @@ def test_pipeline_cada_paso_ve_el_resultado_del_anterior(
 
 
 # --- Casos feos -------------------------------------------------------------
-
-
-def test_accion_con_ia_aun_no_disponible(tmp_path: Path, papelera: PapeleraFalsa) -> None:
-    m = motor(papelera, accion("ia", "ia-resumir"))
-    with pytest.raises(AccionNoValida, match="usa IA"):
-        m.planificar("ia", tmp_path)
 
 
 def test_carpeta_inexistente(tmp_path: Path, papelera: PapeleraFalsa) -> None:

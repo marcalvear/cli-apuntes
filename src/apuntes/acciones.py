@@ -20,10 +20,11 @@ from urllib.parse import quote
 
 from apuntes import config as cfg
 from apuntes.clasificador import Clasificador
-from apuntes.errores import AccionNoValida
+from apuntes.errores import AccionNoValida, DocumentoNoSoportado
 from apuntes.ficheros import tamano_legible, tipo_de
+from apuntes.ia.documento import Documento
 from apuntes.motor import ContextoPlan
-from apuntes.operaciones import Copiar, CrearZip, EnviarAPapelera, Escribir, Mover
+from apuntes.operaciones import Copiar, CrearZip, EnviarAPapelera, Escribir, GenerarConIA, Mover
 
 
 class Accion(ABC):
@@ -100,9 +101,13 @@ class _MoverOCopiar(Accion):
     @abstractmethod
     def _operacion(self, origen: Path, destino: Path, sobrescribe: bool) -> Mover | Copiar: ...
 
+    def _asignatura_de(self, origen: Path, ctx: ContextoPlan) -> str | None:
+        """Por defecto, por palabras clave del nombre. ia-clasificar lo sobrescribe."""
+        return _asignatura(origen, ctx)
+
     def planificar(self, ficheros: list[Path], ctx: ContextoPlan) -> None:
         for origen in ficheros:
-            asignatura = _asignatura(origen, ctx) if self.config.usa_asignatura else None
+            asignatura = self._asignatura_de(origen, ctx) if self.config.usa_asignatura else None
             if self.config.usa_asignatura and asignatura is None:
                 continue
             carpeta_destino = _resolver(
@@ -280,6 +285,99 @@ def _contenido_actual(ruta: Path, ctx: ContextoPlan) -> str | None:
         return contenido_en.read_text("utf-8")
     except (OSError, UnicodeDecodeError):
         return None
+
+
+# --- Tipos con IA -----------------------------------------------------------
+
+
+def _documento(ruta: Path, ctx: ContextoPlan) -> Documento | None:
+    """Lee el fichero para la IA; si no se puede, avisa y devuelve None."""
+    contenido_en = ctx.vista.info(ruta).contenido_en
+    if contenido_en is None:
+        ctx.avisar(ruta, "se crea en este mismo plan; la IA lo leerá en la próxima ejecución")
+        return None
+    try:
+        return Documento.desde_fichero(contenido_en, nombre=ruta.name)
+    except DocumentoNoSoportado as error:
+        ctx.avisar(ruta, error.mensaje)
+        return None
+
+
+class ClasificarConIA(MoverFicheros, tipo="ia-clasificar"):
+    """Como `mover` a {asignatura}, pero la asignatura la decide la IA leyendo el contenido.
+
+    Se llama a la IA al planificar (hace falta para saber el destino); la caché
+    evita pagar dos veces entre `--simular` y la ejecución real.
+    """
+
+    config: cfg.AccionIAClasificar  # type: ignore[assignment]
+
+    def _asignatura_de(self, origen: Path, ctx: ContextoPlan) -> str | None:
+        documento = _documento(origen, ctx)
+        if documento is None:
+            return None
+        clasificacion = ctx.ia().clasificar(documento, ctx.configuracion.asignaturas)
+        if not clasificacion.fiable:
+            asignatura = clasificacion.asignatura or "ninguna"
+            ctx.avisar(
+                origen,
+                f"la IA no lo tiene claro ({asignatura}, confianza {clasificacion.confianza}: "
+                f"{clasificacion.motivo}); no se toca",
+            )
+            return None
+        return clasificacion.asignatura
+
+
+class _GenerarDocumento(Accion):
+    """Base de las acciones que escriben un .md generado por la IA junto a cada documento."""
+
+    config: cfg.AccionIAResumir | cfg.AccionIAPreguntas
+    sufijo: ClassVar[str]
+
+    @abstractmethod
+    def _tarea(self) -> str: ...
+
+    @abstractmethod
+    def _generar(self, ctx: ContextoPlan, documento: Documento) -> str: ...
+
+    def planificar(self, ficheros: list[Path], ctx: ContextoPlan) -> None:
+        for origen in ficheros:
+            destino = self.config.destino
+            carpeta = _resolver(destino, ctx.carpeta) if destino else origen.parent
+            salida = carpeta / f"{origen.stem}{self.sufijo}"
+            if ctx.vista.existe(salida):
+                continue  # ya generado: no se vuelve a pagar (bórralo para regenerarlo)
+            documento = _documento(origen, ctx)
+            if documento is None:
+                continue
+            ctx.anadir(
+                GenerarConIA(
+                    salida,
+                    tarea=f"{self._tarea()} de {origen.name}",
+                    generar=lambda d=documento: self._generar(ctx, d),
+                )
+            )
+
+
+class ResumirConIA(_GenerarDocumento, tipo="ia-resumir"):
+    sufijo = ".resumen.md"
+
+    def _tarea(self) -> str:
+        return "resumen"
+
+    def _generar(self, ctx: ContextoPlan, documento: Documento) -> str:
+        return ctx.ia().resumir(documento)
+
+
+class PreguntasConIA(_GenerarDocumento, tipo="ia-preguntas"):
+    sufijo = ".preguntas.md"
+    config: cfg.AccionIAPreguntas
+
+    def _tarea(self) -> str:
+        return f"{self.config.numero} preguntas"
+
+    def _generar(self, ctx: ContextoPlan, documento: Documento) -> str:
+        return ctx.ia().preguntas(documento, self.config.numero)
 
 
 def tipos_ejecutables() -> frozenset[str]:
