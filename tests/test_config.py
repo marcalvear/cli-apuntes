@@ -210,11 +210,11 @@ def test_localizar_respeta_la_prioridad(tmp_path: Path, monkeypatch: pytest.Monk
     # La del usuario se usa si no hay local.
     usuario = tmp_path / "home" / ".config" / "apuntes" / "acciones.json"
     usuario.parent.mkdir(parents=True)
-    usuario.write_text("{}")
+    usuario.write_text("{}", encoding="utf-8")
     assert localizar(cwd=trabajo) == usuario
 
     # La local gana a la del usuario.
-    (trabajo / "acciones.json").write_text("{}")
+    (trabajo / "acciones.json").write_text("{}", encoding="utf-8")
     assert localizar(cwd=trabajo) == trabajo / "acciones.json"
 
     # La variable de entorno gana a la local, y --config gana a todo.

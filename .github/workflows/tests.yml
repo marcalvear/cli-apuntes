@@ -29,3 +29,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: uv run --frozen pytest --cov=apuntes --cov-report=term-missing
+        env:
+          # Avisa (y pytest lo convierte en error) de cualquier lectura o escritura de
+          # texto sin encoding explícito, en todos los sistemas y no solo en Windows.
+          PYTHONWARNDEFAULTENCODING: "1"
