@@ -1,0 +1,42 @@
+[project]
+name = "apuntes"
+version = "0.1.0"
+description = "CLI que organiza apuntes y material de clase con acciones configurables en JSON y ayuda de IA"
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Marc Alvear", email = "121582673+marcalvear@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "rich>=15.0.0",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+apuntes = "apuntes.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.3",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+# Con PYTHONWARNDEFAULTENCODING=1 (activado en CI), leer o escribir texto sin
+# indicar la codificación es un error: en Windows sería cp1252 y no UTF-8.
+filterwarnings = ["error::EncodingWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
