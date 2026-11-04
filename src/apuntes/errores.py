@@ -45,6 +45,21 @@ class FicheroError(ApuntesError):
     """Una operación sobre el disco falló (permisos, disco lleno, fichero desaparecido...)."""
 
 
+class ErrorIA(ApuntesError):
+    """La IA respondió con un error o no pudo procesar un documento."""
+
+
+class IANoDisponible(ErrorIA):
+    """No se puede usar la IA: falta la clave, no hay red o la clave no es válida.
+
+    Nunca impide usar las acciones sin IA.
+    """
+
+
+class DocumentoNoSoportado(ErrorIA):
+    """El fichero no se puede enviar a la IA (tipo no soportado o demasiado grande)."""
+
+
 class EjecucionInterrumpida(ApuntesError):
     """Una operación falló a mitad de un plan: las anteriores ya se aplicaron."""
 
