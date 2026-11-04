@@ -17,15 +17,17 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
+import apuntes.motor as modulo_motor
 from apuntes import __version__
 from apuntes import config as cfg
 from apuntes.config import Configuracion
 from apuntes.disco import escribir_atomico
 from apuntes.errores import ApuntesError, ConfigError
 from apuntes.ficheros import TipoFichero, listar_carpeta, tamano_legible
+from apuntes.historial import Historial
 from apuntes.ia.entorno import cargar_env, hay_clave, variable_clave
-from apuntes.motor import Motor, Plan
-from apuntes.operaciones import GenerarConIA
+from apuntes.motor import Motor, Plan, aplicar_en_orden
+from apuntes.operaciones import GenerarConIA, Operacion
 
 consola = Console()
 consola_err = Console(stderr=True)
@@ -218,6 +220,8 @@ _COLORES = {
     "comprimir": "magenta",
     "a la papelera": "red",
     "generar con IA": "magenta",
+    "devolver": "blue",
+    "quitar carpeta": "dim",
 }
 _MAX_AVISOS = 15
 
@@ -233,22 +237,30 @@ def _mostrar_plan(plan: Plan) -> None:
             consola.print(f"  [yellow]Paso omitido:[/] {escape(paso.omitido)}")
             continue
         if paso.operaciones:
-            tabla = Table(show_header=True, header_style="dim", box=None, pad_edge=False)
-            tabla.add_column("#", justify="right", style="dim")
-            tabla.add_column("Operación", no_wrap=True)
-            tabla.add_column("Fichero", overflow="fold")
-            tabla.add_column("Destino / detalle", overflow="fold")
-            for i, operacion in enumerate(paso.operaciones, start=1):
-                verbo, objeto, destino = operacion.describir(paso.carpeta)
-                color = _COLORES.get(verbo, "white")
-                tabla.add_row(str(i), f"[{color}]{verbo}[/]", escape(objeto), escape(destino))
-            consola.print(tabla)
+            _tabla_operaciones(paso.operaciones, paso.carpeta)
         else:
             consola.print("  [dim]Nada que hacer en este paso.[/]")
-        for aviso in paso.avisos[:_MAX_AVISOS]:
-            consola.print(f"  [yellow]·[/] [dim]{escape(aviso)}[/]")
-        if len(paso.avisos) > _MAX_AVISOS:
-            consola.print(f"  [dim]… y {len(paso.avisos) - _MAX_AVISOS} avisos más.[/]")
+        _mostrar_avisos(paso.avisos)
+
+
+def _tabla_operaciones(operaciones: list[Operacion], base: Path) -> None:
+    tabla = Table(show_header=True, header_style="dim", box=None, pad_edge=False)
+    tabla.add_column("#", justify="right", style="dim")
+    tabla.add_column("Operación", no_wrap=True)
+    tabla.add_column("Fichero", overflow="fold")
+    tabla.add_column("Destino / detalle", overflow="fold")
+    for i, operacion in enumerate(operaciones, start=1):
+        verbo, objeto, destino = operacion.describir(base)
+        color = _COLORES.get(verbo, "white")
+        tabla.add_row(str(i), f"[{color}]{verbo}[/]", escape(objeto), escape(destino))
+    consola.print(tabla)
+
+
+def _mostrar_avisos(avisos: list[str]) -> None:
+    for aviso in avisos[:_MAX_AVISOS]:
+        consola.print(f"  [yellow]·[/] [dim]{escape(aviso)}[/]")
+    if len(avisos) > _MAX_AVISOS:
+        consola.print(f"  [dim]… y {len(avisos) - _MAX_AVISOS} avisos más.[/]")
 
 
 @app.command()
@@ -314,6 +326,98 @@ def ejecutar(
     consola.print(f"\n[bold green]✓[/] {aplicadas} operaciones aplicadas.")
     if any(op.destructiva for op in plan.operaciones):
         consola.print("[dim]Lo enviado a la papelera se puede recuperar desde allí.[/]")
+    consola.print("[dim]¿No era lo que querías? apuntes deshacer[/]")
+
+
+@app.command()
+def historial(
+    numero: Annotated[
+        int, typer.Option("--numero", "-n", min=1, help="Cuántas ejecuciones mostrar.")
+    ] = 10,
+) -> None:
+    """Muestra las últimas ejecuciones y si se pueden deshacer."""
+    ejecuciones = Historial().ejecuciones()[-numero:]
+    if not ejecuciones:
+        consola.print("[dim]Todavía no se ha ejecutado ninguna acción.[/]")
+        return
+    tabla = Table(title="Historial", title_justify="left")
+    tabla.add_column("#", justify="right")
+    tabla.add_column("Fecha", no_wrap=True)
+    tabla.add_column("Acción", style="bold cyan")
+    tabla.add_column("Carpeta", overflow="fold")
+    tabla.add_column("Ops.", justify="right")
+    tabla.add_column("Estado")
+    colores = {"completa": "green", "interrumpida": "yellow", "deshecha": "dim"}
+    for e in reversed(ejecuciones):
+        tabla.add_row(
+            str(e.id),
+            e.fecha.replace("T", " "),
+            escape(e.accion),
+            escape(e.carpeta),
+            str(len(e.operaciones)),
+            f"[{colores[e.estado]}]{e.estado}[/]",
+        )
+    consola.print(tabla)
+    consola.print("[dim]Deshaz la última con: apuntes deshacer   (o una concreta: deshacer N)[/]")
+
+
+@app.command()
+def deshacer(
+    id_: Annotated[
+        int | None,
+        typer.Argument(
+            metavar="[N]", help="Número de ejecución (ver: apuntes historial).", show_default=False
+        ),
+    ] = None,
+    simular: Annotated[
+        bool, typer.Option("--simular", "-n", help="Muestra qué se desharía sin tocar nada.")
+    ] = False,
+    si: Annotated[bool, typer.Option("--si", "-y", help="No pide confirmación.")] = False,
+) -> None:
+    """Deshace la última ejecución (o la N): devuelve cada fichero a su sitio."""
+    if simular and si:
+        raise typer.BadParameter("--simular y --si no tienen sentido juntas.", param_hint="--si")
+    registro = Historial()
+    ejecucion = registro.buscar(id_)
+    if ejecucion is None:
+        consola.print("[dim]No hay nada que deshacer.[/]")
+        return
+
+    plan = registro.planificar_deshacer(ejecucion)
+    consola.print(
+        f"\nDeshacer [bold]#{ejecucion.id} {escape(ejecucion.accion)}[/] "
+        f"[dim]({ejecucion.fecha.replace('T', ' ')}, {escape(ejecucion.carpeta)})[/]"
+    )
+    base = Path(ejecucion.carpeta)
+    if plan.operaciones:
+        _tabla_operaciones(plan.operaciones, base)
+    _mostrar_avisos(plan.avisos)
+
+    if not plan.operaciones:
+        consola.print("\n[yellow]No queda nada que se pueda deshacer automáticamente.[/]")
+        registro.marcar_deshecha(ejecucion.id)
+        return
+    total = len(plan.operaciones)
+    if simular:
+        consola.print(f"\n[bold]Simulación:[/] {total} operaciones; no se ha cambiado nada.")
+        return
+    if not si:
+        consola.print()
+        try:
+            aceptado = typer.confirm(f"¿Deshacer estas {total} operaciones?", default=False)
+        except typer.Abort:
+            aceptado = False
+        if not aceptado:
+            consola_err.print("Cancelado: no se ha tocado nada.")
+            raise typer.Exit(1)
+
+    # Si falla a medias, no se marca como deshecha: al repetir `deshacer` se recalcula
+    # desde el disco y solo se hace lo que falta.
+    aplicar_en_orden(plan.operaciones, modulo_motor.papelera_del_sistema)
+    registro.marcar_deshecha(ejecucion.id)
+    consola.print(
+        f"\n[bold green]✓[/] Deshecha la ejecución #{ejecucion.id} ({total} operaciones)."
+    )
 
 
 @app.command()

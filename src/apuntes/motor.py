@@ -23,6 +23,7 @@ from send2trash import send2trash
 
 from apuntes.config import AccionConfig, AccionPipeline, Configuracion, Filtro
 from apuntes.errores import ApuntesError, CarpetaNoValida, EjecucionInterrumpida, IANoDisponible
+from apuntes.historial import Estado, Historial
 from apuntes.ia.proveedor import ProveedorIA
 from apuntes.operaciones import (
     Copiar,
@@ -250,11 +251,13 @@ class Motor:
         papelera: Papelera | None = None,
         ahora: datetime | None = None,
         ia: FabricaIA | None = None,
+        historial: Historial | None = None,
     ) -> None:
         self._configuracion = configuracion
-        self._papelera = papelera or _papelera_del_sistema
+        self._papelera = papelera or papelera_del_sistema
         self._ahora = ahora
         self._fabrica_ia = ia or _proveedor_por_defecto
+        self._historial = historial or Historial()
         self._proveedor: ProveedorIA | None = None
         self._ia_no_disponible: IANoDisponible | None = None
 
@@ -316,27 +319,54 @@ class Motor:
         return Plan(accion=principal, carpeta=self.carpeta_de(principal, carpeta), pasos=pasos)
 
     def aplicar(self, plan: Plan, *, al_aplicar: Callable[[Operacion], None] | None = None) -> int:
-        """Aplica el plan en orden. Si una operación falla, se detiene y lo explica.
+        """Aplica el plan y lo guarda en el historial (también si se interrumpe a medias).
 
         `al_aplicar` se llama tras cada operación (para mostrar progreso).
         Devuelve cuántas operaciones se aplicaron.
         """
-        aplicadas = 0
-        for operacion in plan.operaciones:
-            try:
-                operacion.aplicar(self._papelera)
-            except ApuntesError as error:  # fallo de disco o de la IA a mitad
-                total = len(plan.operaciones)
-                raise EjecucionInterrumpida(
-                    f"{error.mensaje} Se detiene la ejecución: {aplicadas} de {total} "
-                    "operaciones ya estaban hechas y el resto no se ha tocado.",
-                    aplicadas=aplicadas,
-                    pista="Vuelve a lanzar la acción con --simular para ver qué queda pendiente.",
-                ) from error
-            aplicadas += 1
-            if al_aplicar is not None:
-                al_aplicar(operacion)
-        return aplicadas
+        hechas: list[dict[str, object]] = []
+        estado: Estado = "interrumpida"
+        try:
+            aplicar_en_orden(
+                plan.operaciones, self._papelera, al_aplicar=al_aplicar, registro=hechas
+            )
+            estado = "completa"
+        finally:
+            if hechas:
+                self._historial.registrar(plan.accion.nombre, plan.carpeta, hechas, estado)
+        return len(hechas)
+
+
+def aplicar_en_orden(
+    operaciones: list[Operacion],
+    papelera: Papelera,
+    *,
+    al_aplicar: Callable[[Operacion], None] | None = None,
+    registro: list[dict[str, object]] | None = None,
+) -> int:
+    """Aplica en orden; ante el primer fallo se detiene y explica cuántas se hicieron.
+
+    Si se pasa `registro`, se añade el registro de cada operación aplicada (para el
+    historial). Lo usan tanto `ejecutar` como `deshacer`.
+    """
+    aplicadas = 0
+    for operacion in operaciones:
+        antes = operacion.registro()  # antes de aplicar: captura el estado previo
+        try:
+            operacion.aplicar(papelera)
+        except ApuntesError as error:  # fallo de disco o de la IA a mitad
+            raise EjecucionInterrumpida(
+                f"{error.mensaje} Se detiene la ejecución: {aplicadas} de {len(operaciones)} "
+                "operaciones ya estaban hechas y el resto no se ha tocado.",
+                aplicadas=aplicadas,
+                pista="Vuelve a lanzar la acción con --simular para ver qué queda pendiente.",
+            ) from error
+        aplicadas += 1
+        if registro is not None:
+            registro.append(antes)
+        if al_aplicar is not None:
+            al_aplicar(operacion)
+    return aplicadas
 
 
 def _proveedor_por_defecto() -> ProveedorIA:
@@ -345,5 +375,5 @@ def _proveedor_por_defecto() -> ProveedorIA:
     return crear_proveedor()
 
 
-def _papelera_del_sistema(ruta: Path) -> None:
+def papelera_del_sistema(ruta: Path) -> None:
     send2trash(ruta)

@@ -45,6 +45,10 @@ apuntes -c ~/otro.json acciones   # usa otro fichero de acciones
 apuntes ejecutar ordenar-todo ~/Descargas --simular   # enseña el plan sin tocar nada
 apuntes ejecutar ordenar-todo ~/Descargas             # lo aplica (pide confirmación si borra)
 apuntes ejecutar limpiar-temporales ~/Descargas --si  # sin preguntar, para scripts
+
+apuntes historial           # últimas ejecuciones
+apuntes deshacer --simular  # qué se desharía
+apuntes deshacer            # deshace la última (o: apuntes deshacer N)
 ```
 
 ### Cómo trabaja `ejecutar`
@@ -73,6 +77,33 @@ Paso 3/4: ordenar-por-asignatura (mover) en /Users/marc/pruebas-tareas
 
 Simulación: 11 operaciones; no se ha cambiado nada.
 ```
+
+### Deshacer
+
+Cada ejecución queda registrada en `~/.local/share/apuntes/historial.json`, también si se
+interrumpe a medias. `apuntes deshacer` calcula cómo volver atrás comprobando el disco en
+ese momento:
+
+- devuelve cada fichero movido o renombrado a su sitio;
+- envía a la papelera lo que creó apuntes (copias, índices, resúmenes, zips);
+- restaura el contenido anterior de un fichero reemplazado;
+- quita las carpetas que creó, **solo si han quedado vacías**.
+
+Nunca pisa nada. Si un fichero ya no está, o su sitio original lo ocupa otro, lo deja como
+está y avisa. Lo enviado a la papelera se recupera desde la propia Papelera, y `deshacer`
+te dice qué ficheros son.
+
+```text
+Deshacer #1 ordenar-todo (2026-11-04 18:15:52, /Users/marc/pruebas-tareas)
+ #  Operación       Fichero                                   Destino / detalle
+ 1  a la papelera   INDICE.md                                 lo creó apuntes
+ 2  devolver        Apuntes/Bases de Datos/java y sql.pdf     java y sql.pdf
+ …
+16  quitar carpeta  Apuntes/                                  si queda vacía
+  · Tema3_POO (1).pdf: está en la Papelera; recupéralo desde allí
+```
+
+El diseño está explicado en el [ADR 0004](docs/adr/0004-historial-y-deshacer.md).
 
 ### Probar sin miedo
 
