@@ -7,8 +7,8 @@ ejercicios que se acumulan en Descargas. Las acciones (mover, renombrar,
 deduplicar, resumir con IA…) no están escritas en el código: se describen en un
 fichero `acciones.json` que el motor interpreta.
 
-> **Estado:** en desarrollo (v0.1.0). Funcionan todas las órdenes y los 10 tipos de acción,
-> 3 de ellos con IA (Gemini, gratis, o Claude).
+> **Versión 1.0.0.** Todas las órdenes y los 10 tipos de acción, 3 de ellos con IA
+> (Gemini, gratis, o Claude). Cambios en el [CHANGELOG](CHANGELOG.md).
 
 ## Instalación
 
@@ -341,4 +341,6 @@ Los tests usan carpetas temporales y nunca tocan ficheros reales, ni la papelera
 la API de Claude: una IA falsa responde por ella. GitHub Actions
 los ejecuta en Linux, macOS y Windows en cada push y pull request.
 
-Las decisiones de diseño están documentadas en [`docs/adr/`](docs/adr/).
+Qué comprueba cada test y por qué está explicado en la [guía de los tests](docs/tests.md).
+Las decisiones de diseño están documentadas en [`docs/adr/`](docs/adr/), y los cambios de cada
+versión, en el [CHANGELOG](CHANGELOG.md).
