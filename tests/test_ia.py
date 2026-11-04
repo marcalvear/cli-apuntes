@@ -96,10 +96,10 @@ def test_cambiar_las_asignaturas_invalida_la_clasificacion(tmp_path: Path) -> No
 
 def test_una_cache_danada_no_es_un_error(tmp_path: Path) -> None:
     ruta = tmp_path / "cache.json"
-    ruta.write_text("{esto no es json")
+    ruta.write_text("{esto no es json", encoding="utf-8")
     cache = ProveedorConCache(IAFalsa(), ruta)
     assert cache.resumir(Documento("t.pdf", "pdf", PDF)).startswith("# Resumen")
-    assert json.loads(ruta.read_text())  # se ha reescrito bien
+    assert json.loads(ruta.read_text(encoding="utf-8"))  # se ha reescrito bien
 
 
 # --- ProveedorClaude con un cliente falso ------------------------------------
@@ -251,7 +251,7 @@ def test_resumir_no_llama_a_la_ia_al_simular(
 
     m.aplicar(plan)
     assert ia.llamadas == [("resumir", "tema1.pdf")]
-    assert (tmp_path / "tema1.resumen.md").read_text().startswith("# Resumen de tema1.pdf")
+    assert (tmp_path / "tema1.resumen.md").read_text(encoding="utf-8").startswith("# Resumen de tema1.pdf")
 
 
 def test_resumir_no_regenera_lo_ya_hecho(
@@ -277,7 +277,7 @@ def test_preguntas_en_carpeta_destino(tmp_path: Path, papelera: PapeleraFalsa, i
         },
     )
     m.aplicar(m.planificar("p", tmp_path))
-    assert (tmp_path / "Repaso" / "tema1.preguntas.md").read_text().startswith("# 5 preguntas")
+    assert (tmp_path / "Repaso" / "tema1.preguntas.md").read_text(encoding="utf-8").startswith("# 5 preguntas")
 
 
 def test_sin_ia_una_accion_de_ia_falla_con_mensaje(tmp_path: Path, papelera: PapeleraFalsa) -> None:

@@ -245,10 +245,10 @@ CONFIG_IA = (
 @pytest.fixture
 def entorno_ia(tmp_path: Path) -> tuple[Path, Path]:
     config = tmp_path / "acciones.json"
-    config.write_text(CONFIG_IA)
+    config.write_text(CONFIG_IA, encoding="utf-8")
     trabajo = tmp_path / "trabajo"
     trabajo.mkdir()
-    (trabajo / "basura.tmp").write_text("x")
+    (trabajo / "basura.tmp").write_text("x", encoding="utf-8")
     (trabajo / "tema1.pdf").write_bytes(b"%PDF-1.4 tema")
     return config, trabajo
 
