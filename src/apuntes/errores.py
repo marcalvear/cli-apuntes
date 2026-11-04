@@ -39,3 +39,15 @@ class ConfigError(ApuntesError):
 
 class AccionNoValida(ApuntesError):
     """Se pidió ejecutar una acción que no existe en la configuración."""
+
+
+class FicheroError(ApuntesError):
+    """Una operación sobre el disco falló (permisos, disco lleno, fichero desaparecido...)."""
+
+
+class EjecucionInterrumpida(ApuntesError):
+    """Una operación falló a mitad de un plan: las anteriores ya se aplicaron."""
+
+    def __init__(self, mensaje: str, *, aplicadas: int, pista: str | None = None) -> None:
+        super().__init__(mensaje, pista=pista)
+        self.aplicadas = aplicadas
