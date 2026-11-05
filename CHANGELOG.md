@@ -5,6 +5,12 @@ Todos los cambios relevantes de `apuntes` se documentan aquí.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto
 usa [versionado semántico](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Añadido
+
+- `copiar-a-icloud`: añade una copia de los documentos en PDF de los apuntes de clase al almacenamiento en la nube de iCloud. Los PDFs se ordenan por asignaturas en la carpeta iCloud. También evita copiar un mismo archivo dos veces saltándose la copia del fichero repetido.
+
 ## [1.0.0] - 2026-11-04
 
 Primera versión estable.
