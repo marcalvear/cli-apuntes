@@ -167,7 +167,7 @@ comprobarla con `apuntes validar`. El porqué de este diseño está en
 }
 ```
 
-El ejemplo completo, con 10 acciones, es [`acciones.json`](acciones.json)
+El ejemplo completo, con 11 acciones, es [`acciones.json`](acciones.json)
 y es el mismo que crea `apuntes init`.
 
 ### Raíz del fichero
@@ -340,15 +340,15 @@ repositorio. Los tests citados se ejecutan con `uv run pytest -k NOMBRE`.
 | Mínimo | Evidencia |
 |---|---|
 | Se instala siguiendo el README y `--help` funciona | [Instalación](#instalación): una orden, `uv tool install git+https://github.com/marcalvear/cli-apuntes`. Probado desde cero con la [release v1.0.0](https://github.com/marcalvear/cli-apuntes/releases/tag/v1.0.0) |
-| Al menos 3 acciones propias en `acciones.json` | [`acciones.json`](acciones.json) tiene 10 acciones: 6 sin IA, 3 con IA y 1 pipeline que combina varias |
+| Al menos 3 acciones propias en `acciones.json` | [`acciones.json`](acciones.json) tiene 11 acciones: 7 sin IA, 3 con IA y 1 pipeline que combina varias |
 | Ninguna clave en el repo ni en su historial | El [primer commit](https://github.com/marcalvear/cli-apuntes/commit/4431e49) ya ignora `.env`. Las claves solo se leen del entorno ([`ia/entorno.py`](src/apuntes/ia/entorno.py)), y la plantilla es [`.env.example`](.env.example) |
-| Al menos 10 commits que cuentan el proceso | Más de 60 commits en 7 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr), todos con un mensaje que explica el porqué |
+| Al menos 10 commits que cuentan el proceso | Más de 60 commits en 9 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr), todos con un mensaje que explica el porqué |
 
 ### Acciones predefinidas funcionando (20 %)
 
 | La rúbrica pide (Excelente) | Evidencia |
 |---|---|
-| 5 o más acciones propias útiles | 10 acciones en [`acciones.json`](acciones.json). Hay 11 tipos disponibles (10 ejecutables más `pipeline`), cada uno una clase en [`acciones.py`](src/apuntes/acciones.py) |
+| 5 o más acciones propias útiles | 11 acciones en [`acciones.json`](acciones.json). Hay 11 tipos disponibles (10 ejecutables más `pipeline`), cada uno una clase en [`acciones.py`](src/apuntes/acciones.py) |
 | Combinables | Tipo `pipeline` (por ejemplo, `ordenar-todo`, con 5 pasos). Test `test_pipeline_cada_paso_ve_el_resultado_del_anterior` |
 | Salida clara: qué se ha hecho y sobre qué ficheros | Cada operación sale en una tabla con el fichero y su destino, y cada fichero que no se toca, con el motivo. Ver [Cómo trabaja `ejecutar`](#cómo-trabaja-ejecutar) |
 | Sin efectos sorpresa: simulación previa | `--simular` muestra el mismo plan que luego se aplica ([ADR 0002](docs/adr/0002-planificar-y-aplicar.md)). Tests `test_planificar_no_modifica_el_disco` y `test_simular_muestra_el_plan_y_no_toca_nada` |

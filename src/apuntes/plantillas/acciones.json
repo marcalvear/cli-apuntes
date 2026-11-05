@@ -76,6 +76,14 @@
       "descripcion": "Limpia, quita duplicados, ordena por asignatura (la IA decide los dudosos) y crea el índice",
       "tipo": "pipeline",
       "pasos": ["limpiar-temporales", "quitar-duplicados", "ordenar-por-asignatura", "clasificar-con-ia", "crear-indice"]
+    },
+    {
+      "nombre": "copiar-a-icloud",
+      "descripcion": "Copia los PDFs de clase a la carpeta de iCloud Drive en Mac",
+      "tipo": "copiar",
+      "filtro": { "extensiones": [".pdf"], "recursivo": true },
+      "destino": "~/Library/Mobile Documents/com~apple~CloudDocs/DAM/{asignatura}",
+      "si_existe": "saltar"
     }
   ]
 }
