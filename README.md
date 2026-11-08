@@ -72,7 +72,7 @@ Lo que se «borra» va siempre a la **Papelera** del sistema y se puede recupera
 Ejemplo de `--simular`:
 
 ```text
-Paso 3/4: ordenar-por-asignatura (mover) en /Users/marc/pruebas-tareas
+Paso 3/5: ordenar-por-asignatura (mover) en /Users/marc/pruebas-tareas
 #  Operación  Fichero                        Destino / detalle
 1  mover      BBDD - Normalizacion 3FN.pdf   Apuntes/Bases de Datos/BBDD - Normalizacion 3FN.pdf
 2  mover      Tema3_POO.pdf                  Apuntes/Programacion/Tema3_POO.pdf
@@ -269,15 +269,16 @@ El resto de ficheros se saltan con un aviso.
 ### Configurar la clave (gratis, con Gemini)
 
 1. En [aistudio.google.com](https://aistudio.google.com), pulsa *Get API key* y luego *Crear clave*. No pide tarjeta.
-2. Copia la plantilla en tu configuración personal y pon la clave:
+2. Crea tu configuración personal a partir de la plantilla [`.env.example`](.env.example)
+   y pon la clave. Si has instalado con `uv tool install` y no tienes el repositorio,
+   la plantilla se descarga con `curl`:
 
    ```bash
-   mkdir -p ~/.config/apuntes && cp .env.example ~/.config/apuntes/.env
+   mkdir -p ~/.config/apuntes
+   curl -fsSL https://raw.githubusercontent.com/marcalvear/cli-apuntes/main/.env.example -o ~/.config/apuntes/.env
    ```
 
-   ```bash
-   open -e ~/.config/apuntes/.env      # GEMINI_API_KEY=tu-clave
-   ```
+   Ábrelo con tu editor y escribe tu clave detrás de `GEMINI_API_KEY=` (en macOS: `open -e ~/.config/apuntes/.env`).
 
 3. Comprueba que todo está bien:
 
@@ -342,7 +343,7 @@ repositorio. Los tests citados se ejecutan con `uv run pytest -k NOMBRE`.
 | Se instala siguiendo el README y `--help` funciona | [Instalación](#instalación): una orden, `uv tool install git+https://github.com/marcalvear/cli-apuntes`. Probado desde cero con la [release v1.0.0](https://github.com/marcalvear/cli-apuntes/releases/tag/v1.0.0) |
 | Al menos 3 acciones propias en `acciones.json` | [`acciones.json`](acciones.json) tiene 11 acciones: 7 sin IA, 3 con IA y 1 pipeline que combina varias |
 | Ninguna clave en el repo ni en su historial | El [primer commit](https://github.com/marcalvear/cli-apuntes/commit/4431e49) ya ignora `.env`. Las claves solo se leen del entorno ([`ia/entorno.py`](src/apuntes/ia/entorno.py)), y la plantilla es [`.env.example`](.env.example) |
-| Al menos 10 commits que cuentan el proceso | Más de 60 commits en 10 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr), todos con un mensaje que explica el porqué |
+| Al menos 10 commits que cuentan el proceso | Más de 60 commits en 11 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr), todos con un mensaje que explica el porqué |
 
 ### Acciones predefinidas funcionando (20 %)
 
@@ -420,7 +421,7 @@ src/apuntes/
 | La rúbrica pide (Excelente) | Evidencia |
 |---|---|
 | Camino feliz y 3 casos feos | 180 tests en [`tests/`](tests/), con un 92 % de cobertura. Hay decenas de casos feos: JSON roto, ruta inexistente, disco que falla a medias, sin red, clave inválida, modelo saturado… |
-| En carpetas temporales | Todos usan `tmp_path`. Fixtures que sustituyen la papelera, la IA, el historial y las credenciales: [`tests/conftest.py`](tests/conftest.py) |
+| En carpetas temporales | Todos los que tocan el disco usan `tmp_path`; ninguno toca ficheros reales. Fixtures que sustituyen la papelera, la IA, el historial y las credenciales: [`tests/conftest.py`](tests/conftest.py) |
 | Ejecutadas en GitHub Actions | [`tests.yml`](.github/workflows/tests.yml) ejecuta `ruff` y `pytest` en Linux, macOS y Windows, con Python 3.12 y 3.13 |
 | Auditadas por el alumno (sabe explicar cada aserción) | [Guía de los tests](docs/tests.md): qué comprueba cada test y por qué |
 
@@ -430,7 +431,7 @@ src/apuntes/
 |---|---|
 | Se instala con una orden siguiendo el README | [Instalación](#instalación), con `uv tool install` o `pipx install` |
 | Release v1.0 etiquetada con changelog | [Release v1.0.0](https://github.com/marcalvear/cli-apuntes/releases/tag/v1.0.0) y [CHANGELOG.md](CHANGELOG.md) |
-| Historial con ramas y PR legibles | 10 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr+is%3Amerged), uno por fase: esqueleto, configuración, motor, IA, Gemini, historial, release, evaluación, acción propia (`copiar-a-icloud`) y este recuento. `main` está protegida: todo entra por PR |
+| Historial con ramas y PR legibles | 11 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr+is%3Amerged): uno por fase (esqueleto, configuración, motor, IA, Gemini, historial, release, evaluación y acción propia `copiar-a-icloud`) y dos de mantenimiento (recuento del README y repaso final). `main` está protegida: todo entra por PR |
 
 ## Desarrollo
 
@@ -443,7 +444,7 @@ uv run ruff check . && uv run ruff format --check .
 ```
 
 Los tests usan carpetas temporales y nunca tocan ficheros reales, ni la papelera, ni
-la API de Claude: una IA falsa responde por ella. GitHub Actions
+ninguna API de IA real: una IA falsa responde en lugar de Gemini y Claude. GitHub Actions
 los ejecuta en Linux, macOS y Windows en cada push y pull request.
 
 Qué comprueba cada test y por qué está explicado en la [guía de los tests](docs/tests.md).

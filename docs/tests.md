@@ -73,7 +73,7 @@ def test_mover_no_pisa_un_fichero_que_aparecio_despues(tmp_path, papelera):
 
 ## 3. Qué comprueba cada fichero
 
-### `test_ficheros.py`: inspección de carpetas (8 tests)
+### `test_ficheros.py`: inspección de carpetas (8 funciones, 18 tests)
 
 - **Camino feliz:** la extensión decide el tipo (`.PDF` y `.pdf` son iguales), los tamaños se
   muestran legibles (`1536` → `"1.5 KB"`) y las carpetas salen primero.
@@ -150,12 +150,12 @@ Mover, copiar, papelera, escribir y zip. Lo importante son los casos feos:
   detiene en la segunda con `EjecucionInterrumpida` («1 de 2 operaciones») y no pisa el fichero
   ajeno.
 
-### `test_clasificador.py`: asignatura por palabras clave (5 tests)
+### `test_clasificador.py`: asignatura por palabras clave (5 funciones, 9 tests)
 
 Por qué `"si"` (Sistemas Informáticos) **no** debe encajar con `sistema_solar.pdf`: las claves
 cortas solo cuentan como palabra suelta. Y si hay empate (`java y sql.pdf`), no se decide.
 
-### `test_ia.py`: la capa de IA (19 tests)
+### `test_ia.py`: la capa de IA (19 funciones, 26 tests)
 
 - **Documento:** qué ficheros se pueden enviar (PDF, `.txt`, `.md`) y qué casos se rechazan con un
   mensaje claro: `.pptx`, un PDF falso, un fichero que no es UTF-8, un fichero vacío.
@@ -169,7 +169,7 @@ cortas solo cuentan como palabra suelta. Y si hay empate (`java y sql.pdf`), no 
 - `test_sin_ia_el_pipeline_sigue_con_los_pasos_sin_ia`: el criterio «si no hay red, la CLI lo
   explica y sigue». El paso de IA aparece como omitido, y el `.tmp` sí se ha enviado a la papelera.
 
-### `test_gemini.py`: el proveedor Gemini (19 tests)
+### `test_gemini.py`: el proveedor Gemini (19 funciones, 23 tests)
 
 Como los de Claude, con un cliente falso. Además:
 

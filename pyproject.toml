@@ -9,13 +9,13 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=2.4.0",
-    "google-genai>=2.34.0",
-    "pydantic>=2.14.2",
-    "python-dotenv>=1.2.4",
-    "rich>=15.0.0",
-    "send2trash>=2.1.0",
-    "typer>=0.27.3",
+    "anthropic>=2.4.0,<3",
+    "google-genai>=2.34.0,<3",
+    "pydantic>=2.14.2,<3",
+    "python-dotenv>=1.2.4,<2",
+    "rich>=15.0.0,<16",
+    "send2trash>=2.1.0,<3",
+    "typer>=0.27.3,<0.29",
 ]
 
 [project.scripts]
