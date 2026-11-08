@@ -11,6 +11,14 @@ usa [versionado semántico](https://semver.org/lang/es/).
 
 - `copiar-a-icloud`: añade una copia de los documentos en PDF de los apuntes de clase al almacenamiento en la nube de iCloud. Los PDFs se ordenan por asignaturas en la carpeta iCloud. También evita copiar un mismo archivo dos veces saltándose la copia del fichero repetido.
 
+### Corregido
+
+- Las dependencias tienen ahora un límite superior de versión. Una instalación nueva con
+  `uv tool install` descargaba `google-genai` 3.0, una versión mayor que no se había probado
+  y que muestra avisos `SyntaxWarning` la primera vez que se usa la IA.
+- README: instrucciones para crear `~/.config/apuntes/.env` sin tener clonado el repositorio,
+  y recuentos de pasos, tests y pull requests corregidos.
+
 ## [1.0.0] - 2026-11-04
 
 Primera versión estable.
