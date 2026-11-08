@@ -342,7 +342,7 @@ repositorio. Los tests citados se ejecutan con `uv run pytest -k NOMBRE`.
 | Se instala siguiendo el README y `--help` funciona | [Instalación](#instalación): una orden, `uv tool install git+https://github.com/marcalvear/cli-apuntes`. Probado desde cero con la [release v1.0.0](https://github.com/marcalvear/cli-apuntes/releases/tag/v1.0.0) |
 | Al menos 3 acciones propias en `acciones.json` | [`acciones.json`](acciones.json) tiene 11 acciones: 7 sin IA, 3 con IA y 1 pipeline que combina varias |
 | Ninguna clave en el repo ni en su historial | El [primer commit](https://github.com/marcalvear/cli-apuntes/commit/4431e49) ya ignora `.env`. Las claves solo se leen del entorno ([`ia/entorno.py`](src/apuntes/ia/entorno.py)), y la plantilla es [`.env.example`](.env.example) |
-| Al menos 10 commits que cuentan el proceso | Más de 60 commits en 9 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr), todos con un mensaje que explica el porqué |
+| Al menos 10 commits que cuentan el proceso | Más de 60 commits en 10 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr), todos con un mensaje que explica el porqué |
 
 ### Acciones predefinidas funcionando (20 %)
 
@@ -430,7 +430,7 @@ src/apuntes/
 |---|---|
 | Se instala con una orden siguiendo el README | [Instalación](#instalación), con `uv tool install` o `pipx install` |
 | Release v1.0 etiquetada con changelog | [Release v1.0.0](https://github.com/marcalvear/cli-apuntes/releases/tag/v1.0.0) y [CHANGELOG.md](CHANGELOG.md) |
-| Historial con ramas y PR legibles | 7 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr+is%3Amerged), uno por fase: esqueleto, configuración, motor, IA, Gemini, historial y release. `main` está protegida: todo entra por PR |
+| Historial con ramas y PR legibles | 10 [pull requests](https://github.com/marcalvear/cli-apuntes/pulls?q=is%3Apr+is%3Amerged), uno por fase: esqueleto, configuración, motor, IA, Gemini, historial, release, evaluación, acción propia (`copiar-a-icloud`) y este recuento. `main` está protegida: todo entra por PR |
 
 ## Desarrollo
 
